@@ -451,10 +451,10 @@
                 <div class="mega-info-card visible">
                     <div class="mega-title">💥 МЕГА МИНЫ 💥</div>
                     <div style="font-size:0.78rem;color:#ffcce0;line-height:1.5;text-align:center;">
-                        Поле 14×8 — <strong>112 ячеек</strong>, <strong>100 мин</strong>.<br>
-                        Только <strong>12 безопасных</strong> клеток.<br>
+                        Поле 10×10 — <strong>100 ячеек</strong>, <strong>80 мин</strong>.<br>
+                        <strong>20 безопасных</strong> клеток.<br>
                         Открывай по <span class="daily-badge">1 в день</span><br>
-                        Прогресс сохраняется!
+                        Мина — продолжаешь играть! 💪
                     </div>
                     <div style="margin-top:12px;">
                         <div style="font-size:0.7rem;color:#ffb0d0;margin-bottom:4px;">ОТКРЫТО БЕЗОПАСНЫХ:</div>
@@ -462,7 +462,7 @@
                             <div class="mega-progress-fill" id="megaProgressFill" style="width:0%"></div>
                         </div>
                         <div class="mega-stats-row">
-                            <span id="megaOpenedCount">0 / 12</span>
+                            <span id="megaOpenedCount">0 / 20</span>
                             <span id="megaDailyStatus">Сегодня: можно открыть ✅</span>
                         </div>
                     </div>
@@ -521,10 +521,10 @@
     let currentMode = 'classic'; // 'classic' | 'mega'
 
     // МЕГА-режим константы
-    const MEGA_COLS = 14, MEGA_ROWS = 8;
-    const MEGA_TOTAL = MEGA_COLS * MEGA_ROWS; // 112
-    const MEGA_MINES = 100;
-    const MEGA_SAFE = MEGA_TOTAL - MEGA_MINES; // 12
+    const MEGA_COLS = 10, MEGA_ROWS = 10;
+    const MEGA_TOTAL = MEGA_COLS * MEGA_ROWS; // 100
+    const MEGA_MINES = 80;
+    const MEGA_SAFE = MEGA_TOTAL - MEGA_MINES; // 20
 
     const STORAGE_KEY = 'vadyms22_mega_mines';
 
@@ -762,7 +762,7 @@
             gameStatusSpan.innerText = `⏳ Ты уже открывал сегодня. Приходи завтра!`;
             gameActive = false;
         } else if (state.gameOver) {
-            gameStatusSpan.innerText = `💀 Игра окончена. Сброс для новой игры.`;
+            gameStatusSpan.innerText = `🏆 Все безопасные клетки найдены! Сброс для новой игры.`;
             gameActive = false;
         } else {
             gameStatusSpan.innerText = `💥 МЕГА МИНЫ: нажми на ячейку (1 в день)`;
@@ -780,12 +780,13 @@
         const canOpen = state && !state.gameOver && state.lastOpenDate !== today;
         document.getElementById('megaDailyStatus').textContent = canOpen
             ? 'Сегодня: можно открыть ✅'
-            : (state && state.gameOver ? '💀 Игра окончена' : 'Сегодня: уже открыто ⏳');
+            : (state && state.gameOver ? '🏆 Все клетки найдены!' : 'Сегодня: уже открыто ⏳');
     }
 
     function renderMegaGrid(state) {
         const mineSet = new Set(state.mines);
         const openedSet = new Set(state.opened);
+        const hitSet = new Set(state.hitMines || []);
 
         gridContainer.style.gridTemplateColumns = `repeat(${MEGA_COLS}, 64px)`;
         gridContainer.innerHTML = '';
@@ -795,15 +796,13 @@
             div.classList.add('cell');
 
             if (openedSet.has(i)) {
-                // Открытая безопасная ячейка
                 div.classList.add('revealed', 'mega-safe');
                 div.innerText = '💎';
-            } else if (state.gameOver && mineSet.has(i)) {
-                // После конца игры — показываем мины
-                div.classList.add('mega-mine-revealed');
+            } else if (hitSet.has(i)) {
+                // Ранее взорванная мина — показываем, но игра не окончена
+                div.classList.add('mine-hit', 'revealed');
                 div.innerText = '💣';
             } else {
-                // Закрытая ячейка
                 div.innerText = (i + 1);
                 div.addEventListener('click', () => onMegaCellClick(i, state));
             }
@@ -816,8 +815,8 @@
             const today = getTodayStr();
             if (state.lastOpenDate === today) {
                 gameStatusSpan.innerText = `⏳ Уже открывал сегодня. Приходи завтра!`;
-            } else {
-                gameStatusSpan.innerText = `💀 Игра окончена. Сброс для новой игры.`;
+            } else if (state.gameOver) {
+                gameStatusSpan.innerText = `🏆 Все безопасные клетки найдены! Сброс для новой игры.`;
             }
             return;
         }
@@ -830,30 +829,28 @@
 
         const mineSet = new Set(state.mines);
 
+        // Сохраняем дату в любом случае (попал на мину или нет — лимит тратится)
+        state.lastOpenDate = today;
+        gameActive = false; // до завтра
+
         if (mineSet.has(idx)) {
-            // МИНА! Помечаем только эту ячейку
+            // МИНА — отмечаем только эту ячейку, игра НЕ заканчивается
+            if (!state.hitMines) state.hitMines = [];
+            state.hitMines.push(idx);
+            saveMegaState(state);
+
             const div = gridContainer.children[idx];
             if (div) {
-                div.classList.remove('cell');
-                div.classList.add('cell', 'mine-hit', 'revealed');
+                div.classList.add('mine-hit', 'revealed');
                 div.innerText = '💣';
-                div.removeEventListener('click', () => {});
+                div.onclick = null;
             }
             shakeGrid();
-            state.gameOver = true;
-            state.lastOpenDate = today;
-            saveMegaState(state);
-            gameActive = false;
             updateMegaUI(state);
-            gameStatusSpan.innerText = `💥 БУМ! Попал на мину! Игра окончена.`;
-            // Показываем остальные мины с задержкой
-            setTimeout(() => {
-                renderMegaGrid(state);
-            }, 1500);
+            gameStatusSpan.innerText = `💥 БУМ! Мина! Но ты продолжаешь — приходи завтра 💪`;
         } else {
             // Безопасная ячейка!
             state.opened.push(idx);
-            state.lastOpenDate = today;
             openedSafeCount = state.opened.length;
             saveMegaState(state);
 
@@ -871,10 +868,8 @@
                 gameStatusSpan.innerText = `🏆 ЛЕГЕНДА! Все ${MEGA_SAFE} безопасных клеток найдены!`;
                 state.gameOver = true;
                 saveMegaState(state);
-                gameActive = false;
             } else {
-                gameStatusSpan.innerText = `💎 Безопасно! (${state.opened.length}/${MEGA_SAFE}) Жди завтра для следующей!`;
-                gameActive = false; // нельзя открыть ещё одну сегодня
+                gameStatusSpan.innerText = `💎 Безопасно! (${state.opened.length}/${MEGA_SAFE}) Жди завтра!`;
             }
         }
     }
