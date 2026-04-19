@@ -1,17 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-
-const MEGA_COLS = 10, MEGA_ROWS = 10, MEGA_TOTAL = 100;
-const CLOUD_KEY = "mega_mines_state";
-
-// ── CSS глобальный ──────────────────────────────────────────────────
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>МИНЫ ОТ vadyms22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
 *{box-sizing:border-box;user-select:none;margin:0;padding:0}
-.app{min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:20px;font-family:'Orbitron','Segoe UI',monospace;transition:background .3s}
-.app.dark{background:linear-gradient(145deg,#1e1a3a,#2a2448)}
-.app.light{background:linear-gradient(145deg,#e6e0f5,#d9cef0)}
-.app.neon{background:linear-gradient(145deg,#0a0f2a,#0b0a20)}
-.app.mint{background:linear-gradient(145deg,#b8f2e6,#9fe0d9)}
+body{min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:20px;font-family:'Orbitron','Segoe UI',monospace;transition:background .3s}
+body.dark{background:linear-gradient(145deg,#1e1a3a,#2a2448)}
+body.light{background:linear-gradient(145deg,#e6e0f5,#d9cef0)}
+body.neon{background:linear-gradient(145deg,#0a0f2a,#0b0a20)}
+body.mint{background:linear-gradient(145deg,#b8f2e6,#9fe0d9)}
 
 .gc{max-width:1600px;width:100%;border-radius:48px;padding:24px;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;backdrop-filter:blur(4px);box-shadow:0 20px 40px rgba(0,0,0,.5)}
 .dark .gc{background:rgba(45,35,75,.75);border:1px solid #bf9eff}
@@ -28,17 +29,17 @@ const CSS = `
 .neon .card{background:#1a0e30cc;border:1px solid #ff44e6}
 .mint .card{background:#dcfff7dd;border:1px solid #2baa8f}
 
-.lbl{font-size:.72rem;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.lbl{font-size:.72rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:6px}
 .dark .lbl,.dark .itext{color:#f0eaff}
 .light .lbl,.light .itext{color:#2a1a5e}
 .neon .lbl,.neon .itext{color:#fff;text-shadow:0 0 3px #ff44e6}
 .mint .lbl,.mint .itext{color:#1b5c4f}
 
 input[type=number]{border-radius:40px;padding:9px 16px;font-family:'Orbitron',monospace;font-size:.95rem;outline:none;width:100%;border:1px solid}
-.dark input{background:#1f1940;border-color:#b77eff;color:#fff}
-.light input{background:#ffffffcc;border-color:#9b6eff;color:#2d1b5e}
-.neon input{background:#1f1140;border-color:#ff66ff;color:#fff}
-.mint input{background:#ffffffcc;border-color:#2baa8f;color:#1e5a4f}
+.dark input[type=number]{background:#1f1940;border-color:#b77eff;color:#fff}
+.light input[type=number]{background:#ffffffcc;border-color:#9b6eff;color:#2d1b5e}
+.neon input[type=number]{background:#1f1140;border-color:#ff66ff;color:#fff}
+.mint input[type=number]{background:#ffffffcc;border-color:#2baa8f;color:#1e5a4f}
 
 .slider-wrap{display:flex;align-items:center;gap:10px}
 input[type=range]{-webkit-appearance:none;flex:1;height:8px;border-radius:8px;outline:none;cursor:pointer;background:rgba(180,138,255,.3)}
@@ -46,23 +47,25 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
 .badge{min-width:54px;text-align:center;font-size:1rem;font-weight:700;padding:5px 10px;border-radius:18px;background:rgba(180,138,255,.2);border:1px solid #b48aff}
 .dark .badge{color:#f0eaff}.light .badge{color:#2a1a5e}.neon .badge{color:#fff;border-color:#ff44e6}.mint .badge{color:#1b5c4f;border-color:#2baa8f}
-.hint{font-size:.68rem;opacity:.7;margin-top:-6px}
+.hint{font-size:.68rem;opacity:.7;margin-top:4px}
 
-.btn{font-family:'Orbitron',monospace;font-weight:700;font-size:.85rem;padding:9px 16px;border-radius:40px;cursor:pointer;transition:all .2s;text-align:center;border:1px solid;background:rgba(0,0,0,.2)}
+.btn{font-family:'Orbitron',monospace;font-weight:700;font-size:.85rem;padding:9px 16px;border-radius:40px;cursor:pointer;transition:all .2s;text-align:center;border:1px solid;background:rgba(0,0,0,.2);width:100%}
 .btn:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.1)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 .dark .btn{background:#3a2b60cc;border-color:#c49eff;color:#fff}
 .light .btn{background:#d9caffcc;border-color:#8c6ad6;color:#2d1b5e}
 .neon .btn{background:#3b1b66cc;border-color:#ff88ff;color:#fff}
 .mint .btn{background:#b2e6dbcc;border-color:#2baa8f;color:#1b5c4f}
-
-.btn-play{background:radial-gradient(circle at 30% 10%,#ff5e8e,#b5185a)!important;border:none!important;font-size:1.05rem!important;letter-spacing:2px;color:#fff0f5!important;text-shadow:0 0 5px #ff0095;box-shadow:0 0 12px #ff5e8e;width:100%}
-.btn-cash{background:radial-gradient(circle at 30% 10%,#2ee68a,#0e8248)!important;border:none!important;flex:1;color:#fff!important}
-.btn-dbl{background:radial-gradient(circle at 30% 10%,#ffb347,#d4650a)!important;border:none!important;flex:1;color:#fff!important}
-.btn-theme{background:linear-gradient(135deg,#7f6bc2,#5e43a3)!important;border:1px solid #e5ccff!important;color:#fff!important}
-.btn-cloud{background:radial-gradient(circle at 30% 10%,#38bdf8,#0369a1)!important;border:none!important;color:#fff!important;width:100%}
-.btn-reset{background:rgba(180,0,60,.3)!important;border-color:#ff5e8e!important;color:#ffb0d0!important;font-size:.75rem;width:100%}
 .btn-row{display:flex;flex-wrap:wrap;gap:8px}
+.btn-row .btn{flex:1;width:auto}
+
+.btn-play{background:radial-gradient(circle at 30% 10%,#ff5e8e,#b5185a)!important;border:none!important;font-size:1.05rem!important;letter-spacing:2px;color:#fff0f5!important;text-shadow:0 0 5px #ff0095;box-shadow:0 0 12px #ff5e8e}
+.btn-cash{background:radial-gradient(circle at 30% 10%,#2ee68a,#0e8248)!important;border:none!important;color:#fff!important}
+.btn-dbl{background:radial-gradient(circle at 30% 10%,#ffb347,#d4650a)!important;border:none!important;color:#fff!important}
+.btn-theme{background:linear-gradient(135deg,#7f6bc2,#5e43a3)!important;border:1px solid #e5ccff!important;color:#fff!important}
+.btn-save{background:radial-gradient(circle at 30% 10%,#38bdf8,#0369a1)!important;border:none!important;color:#fff!important}
+.btn-load{background:radial-gradient(circle at 30% 10%,#a78bfa,#6d28d9)!important;border:none!important;color:#fff!important}
+.btn-reset{background:rgba(180,0,60,.3)!important;border-color:#ff5e8e!important;color:#ffb0d0!important;font-size:.75rem!important}
 
 .mode-row{display:flex;gap:8px}
 .mbtn{flex:1;padding:10px 8px;border-radius:24px;border:2px solid #b48aff;background:rgba(0,0,0,.2);color:#fff;font-family:'Orbitron',monospace;font-weight:700;font-size:.72rem;cursor:pointer;transition:all .2s;text-align:center}
@@ -73,40 +76,43 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
 .stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-radius:40px;background:rgba(0,0,0,.2)}
 .dark .stat-row,.neon .stat-row{color:#f0eaff}.light .stat-row{color:#2a1a5e}.mint .stat-row{color:#1b5c4f}
 .win-val{font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,#e2ff7a,#ffd966);-webkit-background-clip:text;background-clip:text;color:transparent}
-.status{font-size:.78rem;text-align:center;padding:10px;border-radius:28px;background:rgba(0,0,0,.3)}
-.dark .status{background:#1f1940aa;color:#fff}.light .status{background:#e2d6ffaa;color:#2a1a5e}.neon .status{background:#1a0e30aa;color:#fff;border:1px solid #ff44e6}.mint .status{background:#d4fff5aa;color:#1a6b5c}
+.status-box{font-size:.78rem;text-align:center;padding:10px;border-radius:28px}
+.dark .status-box{background:#1f1940aa;color:#fff}.light .status-box{background:#e2d6ffaa;color:#2a1a5e}.neon .status-box{background:#1a0e30aa;color:#fff;border:1px solid #ff44e6}.mint .status-box{background:#d4fff5aa;color:#1a6b5c}
 
-/* МЕГА-карточка */
+/* МЕГА карточка */
 .mega-card{border-radius:24px;padding:16px;background:linear-gradient(135deg,rgba(180,0,60,.3),rgba(80,0,180,.3));border:2px solid #ff5e8e;box-shadow:0 0 20px rgba(255,94,142,.3);display:flex;flex-direction:column;gap:10px}
 .mega-title{font-size:1rem;font-weight:700;text-align:center;color:#ff9ec0;text-shadow:0 0 8px #ff5e8e;letter-spacing:2px}
-.mega-sub{font-size:.72rem;color:#ffcce0;line-height:1.5;text-align:center}
-.prog-bar{width:100%;height:14px;background:rgba(0,0,0,.4);border-radius:10px;overflow:hidden;border:1px solid #ff5e8e44}
+.prog-bar{width:100%;height:14px;background:rgba(0,0,0,.4);border-radius:10px;overflow:hidden;border:1px solid rgba(255,94,142,.3)}
 .prog-fill{height:100%;background:linear-gradient(90deg,#ff5e8e,#ffb347);border-radius:10px;transition:width .5s;box-shadow:0 0 8px #ff5e8e}
 .prog-row{display:flex;justify-content:space-between;font-size:.75rem;color:#ffb0d0}
-.cloud-status{font-size:.7rem;text-align:center;padding:5px 10px;border-radius:16px}
-.cloud-ok{background:rgba(0,180,80,.2);color:#4eff9e;border:1px solid #4eff9e44}
-.cloud-err{background:rgba(180,0,0,.2);color:#ff6666;border:1px solid #ff444444}
-.cloud-load{background:rgba(50,100,255,.2);color:#88aaff;border:1px solid #88aaff44}
+
+/* Бейдж облака */
+.cloud-badge{font-size:.7rem;text-align:center;padding:5px 12px;border-radius:16px;transition:opacity .3s;min-height:26px}
+.cb-saving{background:rgba(50,100,255,.2);color:#88aaff;border:1px solid rgba(136,170,255,.3)}
+.cb-saved {background:rgba(0,180,80,.2);color:#4eff9e;border:1px solid rgba(78,255,158,.3)}
+.cb-loaded{background:rgba(0,180,80,.2);color:#4eff9e;border:1px solid rgba(78,255,158,.3)}
+.cb-error {background:rgba(180,0,0,.2);color:#ff6666;border:1px solid rgba(255,68,68,.3)}
+.cb-empty {background:rgba(100,100,100,.15);color:#aaa;border:1px solid rgba(150,150,150,.2)}
 
 /* СЕТКА */
 .grid-bg{display:inline-flex;padding:14px;border-radius:32px;flex-shrink:0}
 .dark .grid-bg{border:2px solid #b48aff;background:rgba(20,12,50,.6);box-shadow:inset 0 0 60px rgba(120,70,220,.2),0 0 30px rgba(100,50,200,.3)}
 .light .grid-bg{border:2px solid #9b6eff;background:rgba(200,180,255,.25)}
-.neon .grid-bg{border:2px solid #ff44e6;background:rgba(10,5,30,.7);box-shadow:inset 0 0 60px rgba(200,50,220,.15),0 0 30px #ff44e640}
+.neon .grid-bg{border:2px solid #ff44e6;background:rgba(10,5,30,.7);box-shadow:inset 0 0 60px rgba(200,50,220,.15),0 0 30px rgba(255,68,230,.25)}
 .mint .grid-bg{border:2px solid #2baa8f;background:rgba(0,80,60,.15)}
 
 .grid{display:grid;gap:8px}
 .grid.shake{animation:shake .3s cubic-bezier(.36,.07,.19,.97) both}
 @keyframes shake{0%{transform:translate(1px,1px)}10%{transform:translate(-1px,-2px)}20%{transform:translate(-3px,0)}30%{transform:translate(3px,2px)}40%{transform:translate(1px,-1px)}50%{transform:translate(-1px,2px)}60%{transform:translate(-3px,1px)}70%{transform:translate(3px,1px)}80%{transform:translate(-1px,-1px)}90%{transform:translate(1px,2px)}100%{transform:translate(1px,-2px)}}
 
-.cell{width:64px;height:64px;flex-shrink:0;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s cubic-bezier(.2,.9,.4,1.1);border:1px solid #c7a5ff;position:relative}
+.cell{width:64px;height:64px;flex-shrink:0;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s cubic-bezier(.2,.9,.4,1.1);border:1px solid #c7a5ff}
 .dark .cell{background:radial-gradient(ellipse at 30% 35%,#463b75,#2a1f4e);box-shadow:0 4px 0 #2a1b55;color:#fff}
 .light .cell{background:radial-gradient(ellipse at 30% 35%,#f0e9ff,#d9caff);box-shadow:0 4px 0 #9f86d6;color:#1f0e42}
 .neon .cell{background:radial-gradient(ellipse at 30% 35%,#6a2e8a,#3a1a60);box-shadow:0 4px 0 #ff44e6;border-color:#ff88ff;color:#fff}
 .mint .cell{background:radial-gradient(ellipse at 30% 35%,#c5fff0,#a3f0e0);box-shadow:0 4px 0 #2baa8f;color:#0e4a3e;border-color:#3ecfb0}
 .cell:hover:not(.rev){filter:brightness(1.3);transform:scale(.94)}
 .cell.rev{box-shadow:inset 0 0 12px #dbb0ff,0 0 6px #c58eff!important;transform:scale(.92);cursor:default}
-.cell.mine-hit{box-shadow:inset 0 0 20px #ff2200,0 0 12px #ff4400!important;background:radial-gradient(ellipse at center,#ff4400,#8b0000)!important;animation:mFlash .4s ease}
+.cell.mine-hit{box-shadow:inset 0 0 20px #ff2200,0 0 12px #ff4400!important;background:radial-gradient(ellipse at center,#ff4400,#8b0000)!important;animation:mFlash .4s ease;transform:scale(.92);cursor:default}
 @keyframes mFlash{0%{transform:scale(1)}30%{transform:scale(1.15)}100%{transform:scale(.92)}}
 .cell.mega-safe{background:radial-gradient(ellipse at 30% 35%,#2a6e3a,#1a4a28)!important;border-color:#4cff80!important;box-shadow:inset 0 0 12px #2aff60,0 0 8px #1aff50!important}
 .cell.hl{animation:gGlow .8s forwards}
@@ -115,405 +121,531 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
 /* Рулетка */
 .ov{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;z-index:1000}
 .rc{border-radius:48px;padding:20px;text-align:center;border:2px solid gold;box-shadow:0 0 40px rgba(255,215,0,.5);width:360px;background:#1e1a3a;color:#fff;font-family:'Orbitron',monospace}
-.rc h3{margin-bottom:4px}
-.spin-btn{background:radial-gradient(circle at 30% 10%,#ffb347,#d4650a);border:none;padding:10px 20px;border-radius:40px;font-weight:700;margin:10px 5px;cursor:pointer;color:#fff;font-family:'Orbitron',monospace}
-.close-btn{background:gold;border:none;padding:10px 20px;border-radius:40px;font-weight:700;margin:10px 5px;cursor:pointer;color:#000}
+.rc h3{margin-bottom:8px;font-size:1.1rem}
+.spin-btn{background:radial-gradient(circle at 30% 10%,#ffb347,#d4650a);border:none;padding:10px 24px;border-radius:40px;font-weight:700;margin:8px 5px;cursor:pointer;color:#fff;font-family:'Orbitron',monospace}
+.close-btn{background:gold;border:none;padding:10px 24px;border-radius:40px;font-weight:700;margin:8px 5px;cursor:pointer;color:#000;font-family:'Orbitron',monospace}
+
+.hidden{display:none!important}
+.empty-msg{color:#ff9ec0;font-family:'Orbitron',monospace;padding:40px;text-align:center;font-size:1rem;line-height:2.2}
 
 @media(max-width:750px){.gc{flex-direction:column}.lp{flex:none;width:100%}.rp{width:100%}}
-`;
+</style>
+</head>
+<body class="dark">
 
-function generateMines(total, count) {
+<div class="gc">
+
+  <!-- ══ ЛЕВАЯ ПАНЕЛЬ ══ -->
+  <div class="lp">
+    <div class="card">
+
+      <!-- Режим -->
+      <div>
+        <span class="lbl">🎮 РЕЖИМ ИГРЫ</span>
+        <div class="mode-row">
+          <div class="mbtn act-c" id="btnClassic" onclick="switchMode('classic')">⚔️ КЛАССИК</div>
+          <div class="mbtn"       id="btnMega"    onclick="switchMode('mega')">💥 МЕГА МИНЫ</div>
+        </div>
+      </div>
+
+      <!-- ── КЛАССИК ── -->
+      <div id="classicPanel">
+        <div style="margin-bottom:12px">
+          <span class="lbl">🔲 РАЗМЕР ПОЛЯ (NxN)</span>
+          <div class="slider-wrap">
+            <input type="range" id="sizeSlider" min="3" max="12" value="6" oninput="onSizeSlider()">
+            <div class="badge" id="sizeBadge">6×6</div>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <span class="lbl">💣 КОЛИЧЕСТВО МИН</span>
+          <input type="number" id="minesInput" min="1" max="35" value="5">
+          <div class="hint lbl" id="minesHint">макс. 35 из 36 ячеек</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <span class="lbl">💰 НАГРАДА ЗА ЯЧЕЙКУ (₽)</span>
+          <input type="number" id="rewardInput" min="1" value="10">
+        </div>
+        <button class="btn btn-play" onclick="startClassic()">🎮 НОВАЯ ИГРА</button>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn btn-cash" id="cashBtn" disabled onclick="cashout()">💎 ЗАБРАТЬ</button>
+          <button class="btn btn-dbl"  id="dblBtn"  disabled onclick="openRoulette()">🎡 РУЛЕТКА</button>
+        </div>
+      </div>
+
+      <!-- ── МЕГА ── -->
+      <div id="megaPanel" class="hidden">
+        <div class="mega-card">
+          <div class="mega-title">💥 МЕГА МИНЫ 💥</div>
+          <div>
+            <span class="lbl" style="color:#ffb0d0">💣 КОЛ-ВО МИН (из 100)</span>
+            <div class="slider-wrap">
+              <input type="range" id="megaSlider" min="1" max="99" value="80" oninput="onMegaSlider()">
+              <div class="badge" id="megaBadge" style="color:#ffb0d0;border-color:#ff5e8e">80</div>
+            </div>
+            <div class="hint lbl" id="megaHint" style="color:#ff9ec0">безопасных: 20 из 100</div>
+          </div>
+          <div>
+            <span class="lbl" style="color:#ffb0d0;font-size:.62rem">ОТКРЫТО БЕЗОПАСНЫХ:</span>
+            <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            <div class="prog-row">
+              <span id="progText">0 / 20</span>
+              <span id="hitsText">💣 взрывов: 0</span>
+            </div>
+          </div>
+          <!-- Статус облака -->
+          <div class="cloud-badge cb-empty" id="cloudBadge">☁️ Облако не загружено</div>
+        </div>
+
+        <button class="btn btn-play"  style="margin-top:4px"  onclick="startMega()">💥 НОВАЯ МЕГА ИГРА</button>
+        <button class="btn btn-save"  id="saveBtn" disabled   onclick="saveCloud()" style="margin-top:8px">☁️ СОХРАНИТЬ В ОБЛАКО</button>
+        <button class="btn btn-load"                          onclick="loadCloud()" style="margin-top:8px">📥 ЗАГРУЗИТЬ ИЗ ОБЛАКА</button>
+        <button class="btn btn-reset"                         onclick="resetMega()" style="margin-top:8px">🔄 СБРОСИТЬ МЕГА ИГРУ</button>
+      </div>
+
+      <!-- Темы -->
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn btn-theme" onclick="setTheme('dark')">🌑 Тёмная</button>
+        <button class="btn btn-theme" onclick="setTheme('light')">☀️ Светлая</button>
+        <button class="btn btn-theme" onclick="setTheme('neon')">💜 Неон</button>
+        <button class="btn btn-theme" onclick="setTheme('mint')">🍃 Мятная</button>
+      </div>
+    </div>
+
+    <!-- Статы -->
+    <div class="card" style="gap:10px">
+      <div class="stat-row"><span class="itext">✨ ВЫИГРЫШ:</span><span><span class="win-val" id="winDisp">0.00</span> ₽</span></div>
+      <div class="stat-row"><span class="itext">💣 МИН:</span><span class="itext" id="minesDisp">5</span></div>
+      <div class="stat-row"><span class="itext">💎 ОТКРЫТО:</span><span class="itext" id="openedDisp">0 / 31</span></div>
+    </div>
+
+    <div class="status-box" id="statusBox">⚡ Настрой игру и нажми "НОВАЯ ИГРА"</div>
+  </div>
+
+  <!-- ══ ПРАВАЯ ПАНЕЛЬ ══ -->
+  <div class="rp">
+    <div class="grid-bg">
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- РУЛЕТКА -->
+<div class="ov hidden" id="rouletteOv">
+  <div class="rc">
+    <h3>🎡 КОЛЕСО ФОРТУНЫ 🎡</h3>
+    <canvas id="rCanvas" width="300" height="300" style="border-radius:50%;margin:12px auto;display:block"></canvas>
+    <button class="spin-btn" onclick="spinRoulette()">КРУТИТЬ</button>
+    <button class="close-btn" onclick="closeRoulette()">ЗАКРЫТЬ</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  КОНСТАНТЫ И СОСТОЯНИЕ
+// ══════════════════════════════════════════════════════
+const MEGA_TOTAL = 100;
+const MEGA_COLS  = 10;
+const CLOUD_KEY  = 'vadyms22_mega_v2';
+
+let mode       = 'classic';
+
+// Классика
+let boardSize  = 6;
+let board      = [];
+let gameActive = false;
+let win        = 0;
+let openedSafe = 0;
+let reward     = 10;
+let minesCount = 5;
+
+// Мега
+let megaMines  = 80;
+let megaState  = null;   // { mines:[], opened:[], hitMines:[] }
+let megaActive = false;
+
+// ══════════════════════════════════════════════════════
+//  УТИЛИТЫ
+// ══════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const setStatus = t => $('statusBox').textContent = t;
+const setTheme  = t => document.body.className = t;
+
+function genMines(total, count) {
   const s = new Set();
   while (s.size < count) s.add(Math.floor(Math.random() * total));
   return Array.from(s);
 }
 
-function RouletteOverlay({ onClose }) {
-  const canvasRef = useRef(null);
-  const spinning = useRef(false);
-  const angle = useRef(0);
-  const sectors = [{ label: "x2", color: "#4CAF50", v: "win" }, { label: "0", color: "#F44336", v: "lose" }];
-
-  const draw = useCallback((a) => {
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx) return;
-    const cx = 150, cy = 150, r = 140, sa = Math.PI;
-    ctx.clearRect(0, 0, 300, 300);
-    sectors.forEach((sec, i) => {
-      const s = a + i * sa, e = s + sa;
-      ctx.beginPath(); ctx.arc(cx, cy, r, s, e); ctx.lineTo(cx, cy);
-      ctx.fillStyle = sec.color; ctx.fill();
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(s + sa / 2);
-      ctx.fillStyle = "#fff"; ctx.font = "bold 26px Orbitron"; ctx.fillText(sec.label, r - 50, 10);
-      ctx.restore();
-    });
-    ctx.beginPath(); ctx.arc(cx, cy, 20, 0, 2 * Math.PI);
-    ctx.fillStyle = "#222"; ctx.fill();
-    ctx.strokeStyle = "gold"; ctx.lineWidth = 3; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx + 12, cy - r - 4); ctx.lineTo(cx - 12, cy - r - 4); ctx.lineTo(cx, cy - r - 22);
-    ctx.fillStyle = "gold"; ctx.fill();
-  }, []);
-
-  useEffect(() => { draw(angle.current); }, [draw]);
-
-  const spin = () => {
-    if (spinning.current) return;
-    spinning.current = true;
-    const total = (5 + Math.random() * 5) * 2 * Math.PI;
-    const start = angle.current, t0 = performance.now();
-    const animate = (now) => {
-      const t = Math.min(1, (now - t0) / 1500), ease = 1 - Math.pow(1 - t, 3);
-      draw(start + total * ease);
-      if (t < 1) { requestAnimationFrame(animate); return; }
-      angle.current = (start + total) % (2 * Math.PI);
-      draw(angle.current); spinning.current = false;
-      const ptr = ((-Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-      let winner = sectors[0];
-      sectors.forEach((sec, i) => {
-        let ns = ((angle.current + i * Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-        let ne = ((angle.current + (i + 1) * Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-        if (ns < ne ? ptr >= ns && ptr < ne : ptr >= ns || ptr < ne) winner = sec;
-      });
-      setTimeout(() => onClose(winner.v === "win"), 200);
-    };
-    requestAnimationFrame(animate);
-  };
-
-  return (
-    <div className="ov">
-      <div className="rc">
-        <h3>🎡 КОЛЕСО ФОРТУНЫ 🎡</h3>
-        <canvas ref={canvasRef} width={300} height={300} style={{ borderRadius: "50%", margin: "15px auto", display: "block" }} />
-        <button className="spin-btn" onClick={spin}>КРУТИТЬ</button>
-        <button className="close-btn" onClick={() => !spinning.current && onClose(null)}>ЗАКРЫТЬ</button>
-      </div>
-    </div>
-  );
+// ══════════════════════════════════════════════════════
+//  РЕЖИМ
+// ══════════════════════════════════════════════════════
+function switchMode(m) {
+  mode = m;
+  $('btnClassic').className = 'mbtn' + (m === 'classic' ? ' act-c' : '');
+  $('btnMega').className    = 'mbtn' + (m === 'mega'    ? ' act-m' : '');
+  $('classicPanel').classList.toggle('hidden', m !== 'classic');
+  $('megaPanel').classList.toggle('hidden',    m !== 'mega');
+  if (m === 'mega') renderMegaGrid();
+  else renderClassicGrid();
+  refreshStats();
 }
 
-export default function App() {
-  const [theme, setTheme] = useState("dark");
-  const [mode, setMode] = useState("classic");
+// ══════════════════════════════════════════════════════
+//  СТАТИСТИКА (обновляет все дисплеи)
+// ══════════════════════════════════════════════════════
+function refreshStats() {
+  $('winDisp').textContent = win.toFixed(2);
+  if (mode === 'classic') {
+    const totalSafe = boardSize * boardSize - minesCount;
+    $('minesDisp').textContent  = minesCount;
+    $('openedDisp').textContent = openedSafe + ' / ' + totalSafe;
+    $('cashBtn').disabled = !(gameActive && win > 0);
+    $('dblBtn').disabled  = !(gameActive && win > 0);
+  } else {
+    const safe   = MEGA_TOTAL - megaMines;
+    const opened = megaState ? megaState.opened.length : 0;
+    const hits   = megaState ? (megaState.hitMines || []).length : 0;
+    $('minesDisp').textContent  = megaMines;
+    $('openedDisp').textContent = opened + ' / ' + safe;
+    const pct = safe > 0 ? (opened / safe * 100) : 0;
+    $('progFill').style.width = pct + '%';
+    $('progText').textContent = opened + ' / ' + safe;
+    $('hitsText').textContent = '💣 взрывов: ' + hits;
+    $('saveBtn').disabled = !megaState;
+  }
+}
 
-  // Classic state
-  const [boardSize, setBoardSize] = useState(6);
-  const [minesCount, setMinesCount] = useState(5);
-  const [reward, setReward] = useState(10);
-  const [board, setBoard] = useState([]);
-  const [gameActive, setGameActive] = useState(false);
-  const [win, setWin] = useState(0);
-  const [openedSafe, setOpenedSafe] = useState(0);
-  const [status, setStatus] = useState('⚡ Настрой игру и нажми "НОВАЯ ИГРА"');
-  const [shake, setShake] = useState(false);
-  const [hl, setHl] = useState(-1);
-  const [roulette, setRoulette] = useState(false);
+// ══════════════════════════════════════════════════════
+//  ОБЛАКО (localStorage)
+// ══════════════════════════════════════════════════════
+let cloudTimer = null;
+function showCloud(type, msg) {
+  const el = $('cloudBadge');
+  el.textContent = msg;
+  el.className = 'cloud-badge cb-' + type;
+  clearTimeout(cloudTimer);
+  // 'saving' не исчезает само — заменяется следующим статусом
+  if (type !== 'saving') {
+    cloudTimer = setTimeout(() => {
+      el.className = 'cloud-badge cb-empty';
+      el.textContent = '☁️ Облако: данные актуальны';
+    }, 2500);
+  }
+}
 
-  // Mega state
-  const [megaMines, setMegaMines] = useState(80);
-  const [megaState, setMegaState] = useState(null); // {mines:[], opened:[], hitMines:[]}
-  const [cloudStatus, setCloudStatus] = useState(""); // "", "saving", "saved", "loaded", "error"
-  const [megaGameActive, setMegaGameActive] = useState(false);
+function saveCloud() {
+  if (!megaState) { showCloud('error', '❌ Нет данных для сохранения'); return; }
+  showCloud('saving', '⏳ Сохраняю...');
+  try {
+    const payload = { ...megaState, megaMinesCount: megaMines, savedAt: Date.now() };
+    localStorage.setItem(CLOUD_KEY, JSON.stringify(payload));
+    showCloud('saved', '✅ Сохранено в облако!');
+  } catch(e) {
+    showCloud('error', '❌ Ошибка: ' + (e.message || 'неизвестно'));
+  }
+}
 
-  const totalCells = boardSize * boardSize;
-  const totalSafe = totalCells - minesCount;
-  const megaSafe = MEGA_TOTAL - megaMines;
+function autoSave() {
+  if (!megaState) return;
+  try {
+    const payload = { ...megaState, megaMinesCount: megaMines, savedAt: Date.now() };
+    localStorage.setItem(CLOUD_KEY, JSON.stringify(payload));
+    showCloud('saved', '✅ Автосохранено');
+  } catch(e) {
+    showCloud('error', '❌ Не сохранилось');
+  }
+}
 
-  // ── ОБЛАКО ──────────────────────────────────────────
-  const saveToCloud = async (state) => {
-    setCloudStatus("saving");
-    try {
-      await window.storage.set(CLOUD_KEY, JSON.stringify({ ...state, megaMinesCount: megaMines }));
-      setCloudStatus("saved");
-      setTimeout(() => setCloudStatus(""), 2000);
-    } catch (e) {
-      setCloudStatus("error");
-      setTimeout(() => setCloudStatus(""), 3000);
-    }
-  };
+function loadCloud() {
+  try {
+    const raw = localStorage.getItem(CLOUD_KEY);
+    if (!raw) { showCloud('error', '☁️ Облако пустое — начни новую игру'); return; }
+    const data = JSON.parse(raw);
+    megaMines  = data.megaMinesCount || 80;
+    megaState  = { mines: data.mines || [], opened: data.opened || [], hitMines: data.hitMines || [] };
+    megaActive = megaState.opened.length < (MEGA_TOTAL - megaMines);
 
-  const loadFromCloud = async () => {
-    setCloudStatus("loading");
-    try {
-      const res = await window.storage.get(CLOUD_KEY);
-      if (res && res.value) {
-        const data = JSON.parse(res.value);
-        const loadedMines = data.megaMinesCount || 80;
-        setMegaMines(loadedMines);
-        const state = { mines: data.mines, opened: data.opened || [], hitMines: data.hitMines || [] };
-        setMegaState(state);
-        setMegaGameActive(true);
-        setCloudStatus("loaded");
-        setStatus(`☁️ Загружено из облака! Открыто: ${state.opened.length}/${MEGA_TOTAL - loadedMines}`);
-        setTimeout(() => setCloudStatus(""), 2500);
-        return state;
-      } else {
-        setCloudStatus("error");
-        setStatus("☁️ Облако пустое — начни новую игру");
-        setTimeout(() => setCloudStatus(""), 2500);
-      }
-    } catch (e) {
-      setCloudStatus("error");
-      setTimeout(() => setCloudStatus(""), 2500);
-    }
-    return null;
-  };
+    // Обновляем слайдер и подписи
+    $('megaSlider').value    = megaMines;
+    $('megaBadge').textContent = megaMines;
+    $('megaHint').textContent  = 'безопасных: ' + (MEGA_TOTAL - megaMines) + ' из 100';
 
-  // ── КЛАССИКА ──────────────────────────────────────
-  const startClassic = () => {
-    const mc = Math.min(Math.max(1, minesCount), totalCells - 1);
-    const mines = new Set();
-    while (mines.size < mc) mines.add(Math.floor(Math.random() * totalCells));
-    const b = Array(boardSize).fill(null).map((_, r) =>
-      Array(boardSize).fill(null).map((_, c) => ({ isMine: mines.has(r * boardSize + c), revealed: false }))
-    );
-    setBoard(b);
-    setGameActive(true);
-    setWin(0);
-    setOpenedSafe(0);
-    setStatus(`🎲 ${boardSize}×${boardSize} | 💣 ${mc} | ${reward}₽/ячейку`);
-  };
+    refreshStats();
+    renderMegaGrid();
 
-  const clickClassic = (r, c) => {
-    if (!gameActive) return;
-    const cell = board[r][c];
-    if (cell.revealed) return;
-    const nb = board.map(row => row.map(cl => ({ ...cl })));
-    nb[r][c].revealed = true;
-    setBoard(nb);
-    if (cell.isMine) {
-      setShake(true); setTimeout(() => setShake(false), 300);
-      setGameActive(false);
-      setStatus(`💥 ВЗРЫВ! Потеряно ${win.toFixed(2)} ₽`);
-      setWin(0);
-      return;
-    }
-    const newWin = win + reward;
-    const newOpened = openedSafe + 1;
-    setWin(newWin); setOpenedSafe(newOpened);
-    setHl(r * boardSize + c); setTimeout(() => setHl(-1), 800);
-    if (newOpened === totalSafe) { setStatus(`✨ ПОБЕДА! ${newWin.toFixed(2)} ₽ ✨`); setGameActive(false); }
-    else setStatus(`💎 +${reward}₽ | Итого: ${newWin.toFixed(2)} ₽`);
-  };
+    const ts = data.savedAt ? new Date(data.savedAt).toLocaleString('ru') : '—';
+    showCloud('loaded', `✅ Загружено! Сохранено: ${ts}`);
+    setStatus(`☁️ Загружено! Открыто: ${megaState.opened.length} / ${MEGA_TOTAL - megaMines}`);
+  } catch(e) {
+    showCloud('error', '❌ Ошибка загрузки: ' + (e.message || ''));
+  }
+}
 
-  const cashout = () => {
-    if (!gameActive || win <= 0) { setStatus("❌ Нечего забирать."); return; }
-    setStatus(`💰 Вы забрали ${win.toFixed(2)} ₽!`);
-    setBoard(board.map(row => row.map(cl => ({ ...cl, revealed: true }))));
-    setWin(0); setGameActive(false);
-  };
+// ══════════════════════════════════════════════════════
+//  КЛАССИКА
+// ══════════════════════════════════════════════════════
+function onSizeSlider() {
+  boardSize = +$('sizeSlider').value;
+  $('sizeBadge').textContent  = boardSize + '×' + boardSize;
+  const max = boardSize * boardSize - 1;
+  $('minesHint').textContent  = 'макс. ' + max + ' из ' + (boardSize * boardSize) + ' ячеек';
+  $('minesInput').max = max;
+}
 
-  // ── МЕГА ──────────────────────────────────────────
-  const startMega = () => {
-    const state = { mines: generateMines(MEGA_TOTAL, megaMines), opened: [], hitMines: [] };
-    setMegaState(state);
-    setMegaGameActive(true);
-    setStatus(`💥 МЕГА МИНЫ | ${megaMines} мин | ${megaSafe} безопасных`);
-  };
+function startClassic() {
+  boardSize  = +$('sizeSlider').value;
+  minesCount = Math.min(Math.max(1, +$('minesInput').value), boardSize * boardSize - 1);
+  reward     = Math.max(1, +$('rewardInput').value || 10);
+  const total = boardSize * boardSize;
+  const mSet  = new Set(genMines(total, minesCount));
+  board = Array.from({length: boardSize}, (_, r) =>
+    Array.from({length: boardSize}, (_, c) => ({ isMine: mSet.has(r * boardSize + c), revealed: false }))
+  );
+  win = 0; openedSafe = 0; gameActive = true;
+  refreshStats();
+  renderClassicGrid();
+  setStatus(`🎲 ${boardSize}×${boardSize} | 💣 ${minesCount} | ${reward}₽/ячейку`);
+}
 
-  const clickMega = async (idx) => {
-    if (!megaGameActive || !megaState) return;
-    const mineSet = new Set(megaState.mines);
-    const newState = { ...megaState, opened: [...megaState.opened], hitMines: [...(megaState.hitMines || [])] };
+function renderClassicGrid() {
+  const g = $('grid');
+  g.style.gridTemplateColumns = `repeat(${boardSize}, 64px)`;
+  g.innerHTML = '';
+  if (!board.length) return;
+  board.forEach((row, r) => row.forEach((cell, c) => {
+    const idx = r * boardSize + c;
+    const d   = document.createElement('div');
+    let cls   = 'cell';
+    if (cell.revealed) cls += cell.isMine ? ' mine-hit rev' : ' rev';
+    d.className   = cls;
+    d.textContent = cell.revealed ? (cell.isMine ? '💣' : reward + '₽') : (idx + 1);
+    d.onclick     = () => clickClassic(r, c);
+    g.appendChild(d);
+  }));
+}
 
-    if (mineSet.has(idx)) {
-      newState.hitMines.push(idx);
-      setShake(true); setTimeout(() => setShake(false), 300);
-      setStatus(`💥 БУМ! Мина #${newState.hitMines.length} — продолжай! 💪`);
+function clickClassic(r, c) {
+  if (!gameActive) return;
+  const cell = board[r][c];
+  if (cell.revealed) return;
+  cell.revealed = true;
+  if (cell.isMine) {
+    shakeGrid();
+    renderClassicGrid();
+    gameActive = false;
+    setStatus(`💥 ВЗРЫВ! Потеряно ${win.toFixed(2)} ₽`);
+    win = 0; refreshStats();
+    return;
+  }
+  win += reward; openedSafe++;
+  renderClassicGrid();
+  hlCell(r * boardSize + c);
+  refreshStats();
+  const totalSafe = boardSize * boardSize - minesCount;
+  if (openedSafe === totalSafe) {
+    setStatus(`✨ ПОБЕДА! ${win.toFixed(2)} ₽ ✨`); gameActive = false;
+  } else {
+    setStatus(`💎 +${reward}₽ | Итого: ${win.toFixed(2)} ₽`);
+  }
+}
+
+function cashout() {
+  if (!gameActive || win <= 0) { setStatus('❌ Нечего забирать.'); return; }
+  setStatus(`💰 Забрано ${win.toFixed(2)} ₽!`);
+  board.forEach(row => row.forEach(c => c.revealed = true));
+  renderClassicGrid();
+  win = 0; gameActive = false; refreshStats();
+}
+
+// ══════════════════════════════════════════════════════
+//  МЕГА РЕЖИМ
+// ══════════════════════════════════════════════════════
+function onMegaSlider() {
+  megaMines = +$('megaSlider').value;
+  $('megaBadge').textContent = megaMines;
+  $('megaHint').textContent  = 'безопасных: ' + (MEGA_TOTAL - megaMines) + ' из 100';
+  refreshStats();
+}
+
+function startMega() {
+  megaState  = { mines: genMines(MEGA_TOTAL, megaMines), opened: [], hitMines: [] };
+  megaActive = true;
+  win = 0;
+  showCloud('empty', '☁️ Новая игра — не сохранено');
+  refreshStats();
+  renderMegaGrid();
+  setStatus(`💥 МЕГА МИНЫ | ${megaMines} мин | ${MEGA_TOTAL - megaMines} безопасных`);
+}
+
+function renderMegaGrid() {
+  const g = $('grid');
+  g.innerHTML = '';
+  if (!megaState) {
+    g.style.gridTemplateColumns = '';
+    const msg = document.createElement('div');
+    msg.className   = 'empty-msg';
+    msg.innerHTML   = '💥 Нажми «НОВАЯ МЕГА ИГРА»<br>или загрузи из облака ☁️';
+    g.appendChild(msg);
+    return;
+  }
+  g.style.gridTemplateColumns = `repeat(${MEGA_COLS}, 64px)`;
+  const openedSet = new Set(megaState.opened);
+  const hitSet    = new Set(megaState.hitMines || []);
+  for (let i = 0; i < MEGA_TOTAL; i++) {
+    const d = document.createElement('div');
+    if (openedSet.has(i)) {
+      d.className   = 'cell rev mega-safe';
+      d.textContent = '💎';
+    } else if (hitSet.has(i)) {
+      d.className   = 'cell mine-hit rev';
+      d.textContent = '💣';
     } else {
-      newState.opened.push(idx);
-      const safe = MEGA_TOTAL - megaMines;
-      if (newState.opened.length >= safe) {
-        setStatus(`🏆 ЛЕГЕНДА! Все ${safe} безопасных найдены! (взрывов: ${newState.hitMines.length})`);
-        setMegaGameActive(false);
-      } else {
-        setStatus(`💎 Безопасно! (${newState.opened.length}/${safe}) Продолжай!`);
-      }
+      d.className   = 'cell';
+      d.textContent = i + 1;
+      d.onclick     = () => clickMega(i);
     }
-    setMegaState(newState);
-    // Автосохранение в облако после каждого клика
-    try {
-      setCloudStatus("saving");
-      await window.storage.set(CLOUD_KEY, JSON.stringify({ ...newState, megaMinesCount: megaMines }));
-      setCloudStatus("saved");
-      setTimeout(() => setCloudStatus(""), 1500);
-    } catch (e) {
-      setCloudStatus("error");
-      setTimeout(() => setCloudStatus(""), 2000);
-    }
-  };
-
-  const resetMega = () => {
-    setMegaState(null);
-    setMegaGameActive(false);
-    setStatus("🔄 Нажми 'НОВАЯ МЕГА ИГРА' для начала");
-  };
-
-  // ── РУЛЕТКА ──────────────────────────────────────
-  const handleRoulette = (isWin) => {
-    setRoulette(false);
-    if (isWin === null) return;
-    if (isWin) { setWin(w => w * 2); setStatus(w => `🎉 Удвоено!`); }
-    else { setStatus(`💔 Неудача! Потеряно ${win.toFixed(2)} ₽`); setWin(0); setGameActive(false); }
-  };
-
-  // ── РЕНДЕР КЛАССИКИ ──────────────────────────────
-  const renderClassicGrid = () => (
-    <div className={`grid${shake ? " shake" : ""}`} style={{ gridTemplateColumns: `repeat(${boardSize}, 64px)` }}>
-      {board.map((row, r) => row.map((cell, c) => {
-        const idx = r * boardSize + c;
-        let cls = "cell";
-        if (cell.revealed) { cls += cell.isMine ? " mine-hit rev" : " rev"; }
-        if (hl === idx) cls += " hl";
-        return (
-          <div key={idx} className={cls} onClick={() => clickClassic(r, c)}>
-            {cell.revealed ? (cell.isMine ? "💣" : `${reward}₽`) : idx + 1}
-          </div>
-        );
-      }))}
-    </div>
-  );
-
-  // ── РЕНДЕР МЕГА ──────────────────────────────────
-  const renderMegaGrid = () => {
-    if (!megaState) return (
-      <div style={{ color: "#ff9ec0", fontFamily: "Orbitron,monospace", padding: 40, textAlign: "center", fontSize: "1rem" }}>
-        💥 Нажми «НОВАЯ МЕГА ИГРА»<br />или загрузи из облака ☁️
-      </div>
-    );
-    const mineSet = new Set(megaState.mines);
-    const openedSet = new Set(megaState.opened);
-    const hitSet = new Set(megaState.hitMines || []);
-    return (
-      <div className={`grid${shake ? " shake" : ""}`} style={{ gridTemplateColumns: `repeat(${MEGA_COLS}, 64px)` }}>
-        {Array.from({ length: MEGA_TOTAL }, (_, i) => {
-          let cls = "cell";
-          if (openedSet.has(i)) cls += " rev mega-safe";
-          else if (hitSet.has(i)) cls += " mine-hit rev";
-          return (
-            <div key={i} className={cls} onClick={() => (!openedSet.has(i) && !hitSet.has(i)) && clickMega(i)}>
-              {openedSet.has(i) ? "💎" : hitSet.has(i) ? "💣" : i + 1}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const cloudLabel = cloudStatus === "saving" ? "☁️ Сохраняю..." : cloudStatus === "saved" ? "✅ Сохранено!" : cloudStatus === "loaded" ? "✅ Загружено!" : cloudStatus === "loading" ? "⏳ Загружаю..." : cloudStatus === "error" ? "❌ Ошибка" : "";
-  const cloudCls = cloudStatus === "saved" || cloudStatus === "loaded" ? "cloud-status cloud-ok" : cloudStatus === "error" ? "cloud-status cloud-err" : "cloud-status cloud-load";
-
-  const megaOpened = megaState ? megaState.opened.length : 0;
-  const megaHits = megaState ? (megaState.hitMines || []).length : 0;
-  const megaPct = megaSafe > 0 ? (megaOpened / megaSafe) * 100 : 0;
-
-  return (
-    <div className={`app ${theme}`}>
-      <style>{CSS}</style>
-      {roulette && <RouletteOverlay onClose={handleRoulette} />}
-
-      <div className="gc">
-        {/* ── Левая панель ── */}
-        <div className="lp">
-          <div className="card">
-            {/* Режим */}
-            <div>
-              <div className="lbl" style={{ marginBottom: 8 }}>🎮 РЕЖИМ ИГРЫ</div>
-              <div className="mode-row">
-                <div className={`mbtn ${mode === "classic" ? "act-c" : ""}`} onClick={() => setMode("classic")}>⚔️ КЛАССИК</div>
-                <div className={`mbtn ${mode === "mega" ? "act-m" : ""}`} onClick={() => setMode("mega")}>💥 МЕГА МИНЫ</div>
-              </div>
-            </div>
-
-            {/* Классик настройки */}
-            {mode === "classic" && (
-              <>
-                <div>
-                  <div className="lbl" style={{ marginBottom: 6 }}>🔲 РАЗМЕР ПОЛЯ (NxN)</div>
-                  <div className="slider-wrap">
-                    <input type="range" min={3} max={12} value={boardSize} onChange={e => setBoardSize(+e.target.value)} />
-                    <div className="badge">{boardSize}×{boardSize}</div>
-                  </div>
-                </div>
-                <div>
-                  <div className="lbl" style={{ marginBottom: 6 }}>💣 КОЛИЧЕСТВО МИН</div>
-                  <input type="number" min={1} max={totalCells - 1} value={minesCount} onChange={e => setMinesCount(+e.target.value)} />
-                  <div className="hint lbl">макс. {totalCells - 1} из {totalCells} ячеек</div>
-                </div>
-                <div>
-                  <div className="lbl" style={{ marginBottom: 6 }}>💰 НАГРАДА ЗА ЯЧЕЙКУ (₽)</div>
-                  <input type="number" min={1} value={reward} onChange={e => setReward(+e.target.value)} />
-                </div>
-                <button className="btn btn-play" onClick={startClassic}>🎮 НОВАЯ ИГРА</button>
-                <div className="btn-row">
-                  <button className="btn btn-cash" disabled={!gameActive || win <= 0} onClick={cashout}>💎 ЗАБРАТЬ</button>
-                  <button className="btn btn-dbl" disabled={!gameActive || win <= 0} onClick={() => setRoulette(true)}>🎡 РУЛЕТКА</button>
-                </div>
-              </>
-            )}
-
-            {/* Мега настройки */}
-            {mode === "mega" && (
-              <>
-                <div className="mega-card">
-                  <div className="mega-title">💥 МЕГА МИНЫ 💥</div>
-                  <div>
-                    <div className="lbl" style={{ color: "#ffb0d0", marginBottom: 6 }}>💣 КОЛ-ВО МИН (из 100)</div>
-                    <div className="slider-wrap">
-                      <input type="range" min={1} max={99} value={megaMines} onChange={e => setMegaMines(+e.target.value)} />
-                      <div className="badge" style={{ color: "#ffb0d0", borderColor: "#ff5e8e" }}>{megaMines}</div>
-                    </div>
-                    <div className="lbl hint" style={{ color: "#ff9ec0" }}>безопасных: {megaSafe} из 100</div>
-                  </div>
-                  <div>
-                    <div className="lbl" style={{ color: "#ffb0d0", marginBottom: 4, fontSize: ".68rem" }}>ОТКРЫТО БЕЗОПАСНЫХ:</div>
-                    <div className="prog-bar"><div className="prog-fill" style={{ width: megaPct + "%" }} /></div>
-                    <div className="prog-row">
-                      <span>{megaOpened} / {megaSafe}</span>
-                      <span>💣 взрывов: {megaHits}</span>
-                    </div>
-                  </div>
-                  {cloudLabel && <div className={cloudCls}>{cloudLabel}</div>}
-                </div>
-                <button className="btn btn-play" onClick={startMega}>💥 НОВАЯ МЕГА ИГРА</button>
-                <button className="btn btn-cloud" onClick={() => megaState && saveToCloud(megaState)} disabled={!megaState}>
-                  ☁️ СОХРАНИТЬ В ОБЛАКО
-                </button>
-                <button className="btn btn-cloud" onClick={loadFromCloud} style={{ background: "radial-gradient(circle at 30% 10%,#a78bfa,#6d28d9)!important" }}>
-                  📥 ЗАГРУЗИТЬ ИЗ ОБЛАКА
-                </button>
-                <button className="btn btn-reset" onClick={resetMega}>🔄 СБРОСИТЬ МЕГА ИГРУ</button>
-              </>
-            )}
-
-            {/* Темы */}
-            <div className="btn-row">
-              <button className="btn btn-theme" onClick={() => setTheme("dark")}>🌑 Тёмная</button>
-              <button className="btn btn-theme" onClick={() => setTheme("light")}>☀️ Светлая</button>
-              <button className="btn btn-theme" onClick={() => setTheme("neon")}>💜 Неон</button>
-              <button className="btn btn-theme" onClick={() => setTheme("mint")}>🍃 Мятная</button>
-            </div>
-          </div>
-
-          {/* Статистика */}
-          <div className="card">
-            <div className="stat-row"><span className="itext">✨ ВЫИГРЫШ:</span><span><span className="win-val">{win.toFixed(2)}</span> ₽</span></div>
-            <div className="stat-row"><span className="itext">💣 МИН:</span><span className="itext">{mode === "mega" ? megaMines : minesCount}</span></div>
-            <div className="stat-row">
-              <span className="itext">💎 ОТКРЫТО:</span>
-              <span className="itext">{mode === "mega" ? megaOpened : openedSafe} / {mode === "mega" ? megaSafe : totalSafe}</span>
-            </div>
-          </div>
-
-          <div className="status">{status}</div>
-        </div>
-
-        {/* ── Правая панель: сетка ── */}
-        <div className="rp">
-          <div className="grid-bg">
-            {mode === "classic" ? renderClassicGrid() : renderMegaGrid()}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    g.appendChild(d);
+  }
 }
+
+function clickMega(idx) {
+  if (!megaActive || !megaState) return;
+  const mineSet   = new Set(megaState.mines);
+  const openedSet = new Set(megaState.opened);
+  const hitSet    = new Set(megaState.hitMines || []);
+  if (openedSet.has(idx) || hitSet.has(idx)) return;
+
+  if (mineSet.has(idx)) {
+    megaState.hitMines.push(idx);
+    shakeGrid();
+    setStatus(`💥 БУМ! Мина #${megaState.hitMines.length} — продолжай! 💪`);
+  } else {
+    megaState.opened.push(idx);
+    const safe = MEGA_TOTAL - megaMines;
+    if (megaState.opened.length >= safe) {
+      setStatus(`🏆 ЛЕГЕНДА! Все ${safe} безопасных найдены! (взрывов: ${megaState.hitMines.length})`);
+      megaActive = false;
+    } else {
+      setStatus(`💎 Безопасно! (${megaState.opened.length}/${safe}) Продолжай!`);
+    }
+  }
+
+  refreshStats();
+  renderMegaGrid();
+  autoSave();  // ← автосохранение после каждого хода
+}
+
+function resetMega() {
+  if (!confirm('Сбросить прогресс МЕГА ИГРЫ? Всё будет удалено!')) return;
+  megaState = null; megaActive = false; win = 0;
+  try { localStorage.removeItem(CLOUD_KEY); } catch(e) {}
+  showCloud('empty', '☁️ Облако очищено');
+  refreshStats();
+  renderMegaGrid();
+  setStatus("🔄 Нажми 'НОВАЯ МЕГА ИГРА' для начала");
+}
+
+// ══════════════════════════════════════════════════════
+//  АНИМАЦИИ
+// ══════════════════════════════════════════════════════
+function shakeGrid() {
+  const g = $('grid');
+  g.classList.add('shake');
+  setTimeout(() => g.classList.remove('shake'), 300);
+}
+
+function hlCell(idx) {
+  const cells = $('grid').querySelectorAll('.cell');
+  if (!cells[idx]) return;
+  cells[idx].classList.add('hl');
+  setTimeout(() => cells[idx] && cells[idx].classList.remove('hl'), 800);
+}
+
+// ══════════════════════════════════════════════════════
+//  РУЛЕТКА
+// ══════════════════════════════════════════════════════
+let rSpinning = false, rAngle = 0;
+const rSectors = [{ label:'x2', color:'#4CAF50', v:'win' }, { label:'0', color:'#F44336', v:'lose' }];
+
+function drawWheel(a) {
+  const cv = $('rCanvas'), ctx = cv.getContext('2d');
+  const cx = 150, cy = 150, r = 140, sa = Math.PI;
+  ctx.clearRect(0, 0, 300, 300);
+  rSectors.forEach((sec, i) => {
+    const s = a + i * sa, e = s + sa;
+    ctx.beginPath(); ctx.arc(cx, cy, r, s, e); ctx.lineTo(cx, cy);
+    ctx.fillStyle = sec.color; ctx.fill();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(s + sa / 2);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 26px Orbitron'; ctx.fillText(sec.label, r - 50, 10);
+    ctx.restore();
+  });
+  ctx.beginPath(); ctx.arc(cx, cy, 20, 0, 2 * Math.PI);
+  ctx.fillStyle = '#222'; ctx.fill();
+  ctx.strokeStyle = 'gold'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+12, cy-r-4); ctx.lineTo(cx-12, cy-r-4); ctx.lineTo(cx, cy-r-22);
+  ctx.fillStyle = 'gold'; ctx.fill();
+}
+
+function openRoulette() {
+  if (!gameActive || win <= 0) { setStatus('❌ Нечего удваивать.'); return; }
+  $('rouletteOv').classList.remove('hidden');
+  drawWheel(rAngle);
+}
+
+function closeRoulette() {
+  if (!rSpinning) $('rouletteOv').classList.add('hidden');
+}
+
+function spinRoulette() {
+  if (rSpinning) return;
+  rSpinning = true;
+  const total = (5 + Math.random() * 5) * 2 * Math.PI;
+  const start = rAngle, t0 = performance.now();
+  (function animate(now) {
+    const t = Math.min(1, (now - t0) / 1500), ease = 1 - Math.pow(1 - t, 3);
+    drawWheel(start + total * ease);
+    if (t < 1) { requestAnimationFrame(animate); return; }
+    rAngle = (start + total) % (2 * Math.PI);
+    drawWheel(rAngle); rSpinning = false;
+    const ptr = ((-Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    let winner = rSectors[0];
+    rSectors.forEach((sec, i) => {
+      const ns = ((rAngle + i * Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+      const ne = ((rAngle + (i+1) * Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+      if (ns < ne ? ptr >= ns && ptr < ne : ptr >= ns || ptr < ne) winner = sec;
+    });
+    setTimeout(() => {
+      $('rouletteOv').classList.add('hidden');
+      if (winner.v === 'win') {
+        win *= 2; refreshStats();
+        setStatus(`🎉 Удвоено! Теперь ${win.toFixed(2)} ₽`);
+      } else {
+        setStatus(`💔 Неудача! Потеряно ${win.toFixed(2)} ₽`);
+        win = 0; gameActive = false; refreshStats();
+      }
+    }, 300);
+  })(t0);
+}
+
+// ══════════════════════════════════════════════════════
+//  ИНИЦИАЛИЗАЦИЯ
+// ══════════════════════════════════════════════════════
+(function init() {
+  board = [];
+  renderClassicGrid();
+  refreshStats();
+  // Проверяем есть ли сохранение и показываем подсказку
+  try {
+    const raw = localStorage.getItem(CLOUD_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      const ts = data.savedAt ? new Date(data.savedAt).toLocaleString('ru') : '—';
+      $('cloudBadge').textContent = `☁️ Есть сохранение (${ts})`;
+      $('cloudBadge').className   = 'cloud-badge cb-empty';
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>
