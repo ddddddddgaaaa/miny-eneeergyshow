@@ -450,25 +450,24 @@
             <div id="megaSettings" class="hidden">
                 <div class="mega-info-card visible">
                     <div class="mega-title">💥 МЕГА МИНЫ 💥</div>
-                    <div style="font-size:0.78rem;color:#ffcce0;line-height:1.5;text-align:center;">
-                        Поле 10×10 — <strong>100 ячеек</strong>, <strong>80 мин</strong>.<br>
-                        <strong>20 безопасных</strong> клеток.<br>
-                        Открывай по <span class="daily-badge">1 в день</span><br>
-                        Мина — продолжаешь играть! 💪
+                    <div class="menu-group" style="margin-bottom:10px;">
+                        <div class="menu-label" style="color:#ffb0d0;">💣 КОЛ-ВО МИН (из 100)</div>
+                        <div class="size-slider-wrap">
+                            <input type="range" id="megaMinesSlider" class="size-slider" min="1" max="99" value="80" step="1">
+                            <div class="size-value-badge" id="megaMinesBadge" style="color:#ffb0d0;border-color:#ff5e8e;">80</div>
+                        </div>
+                        <div style="font-size:0.68rem;color:#ff9ec0;opacity:0.8;" id="megaSafeHint">безопасных: 20 из 100</div>
                     </div>
-                    <div style="margin-top:12px;">
+                    <div style="margin-top:4px;">
                         <div style="font-size:0.7rem;color:#ffb0d0;margin-bottom:4px;">ОТКРЫТО БЕЗОПАСНЫХ:</div>
                         <div class="mega-progress-bar">
                             <div class="mega-progress-fill" id="megaProgressFill" style="width:0%"></div>
                         </div>
                         <div class="mega-stats-row">
                             <span id="megaOpenedCount">0 / 20</span>
-                            <span id="megaDailyStatus">Сегодня: можно открыть ✅</span>
+                            <span id="megaHitCount">💣 взрывов: 0</span>
                         </div>
                     </div>
-                    <button class="option-btn" id="megaResetBtn" onclick="resetMegaGame()" style="margin-top:12px;width:100%;background:rgba(180,0,60,0.3);border-color:#ff5e8e;color:#ffb0d0;font-size:0.75rem;">
-                        🔄 СБРОСИТЬ МЕГА ИГРУ
-                    </button>
                 </div>
             </div>
 
@@ -523,8 +522,8 @@
     // МЕГА-режим константы
     const MEGA_COLS = 10, MEGA_ROWS = 10;
     const MEGA_TOTAL = MEGA_COLS * MEGA_ROWS; // 100
-    const MEGA_MINES = 80;
-    const MEGA_SAFE = MEGA_TOTAL - MEGA_MINES; // 20
+    let MEGA_MINES = 80;
+    let MEGA_SAFE = MEGA_TOTAL - MEGA_MINES; // 20
 
     const STORAGE_KEY = 'vadyms22_mega_mines';
 
@@ -700,87 +699,45 @@
     //  МЕГА РЕЖИМ — ХРАНИЛИЩЕ
     // ═══════════════════════════════════════
 
-    function getTodayStr() {
-        const d = new Date();
-        return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-    }
-
-    function loadMegaState() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) return JSON.parse(raw);
-        } catch(e) {}
-        return null;
-    }
-
-    function saveMegaState(state) {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        } catch(e) {
-            // localStorage недоступен — сохраняем в памяти
-            window._megaFallback = state;
-        }
-    }
-
-    function getMegaState() {
-        return loadMegaState() || window._megaFallback || null;
-    }
-
     function generateMegaMines() {
-        // Генерируем индексы 100 мин из 112 ячеек
         const mineSet = new Set();
         while (mineSet.size < MEGA_MINES) mineSet.add(Math.floor(Math.random() * MEGA_TOTAL));
         return Array.from(mineSet);
     }
 
     function loadMegaGame() {
-        let state = getMegaState();
-        if (!state) {
-            // Первый запуск — создаём новую игру
-            state = {
-                mines: generateMegaMines(),
-                opened: [],      // индексы открытых безопасных ячеек
-                lastOpenDate: null,
-                gameOver: false
-            };
-            saveMegaState(state);
-        }
+        // Берём кол-во мин из слайдера
+        MEGA_MINES = parseInt(document.getElementById('megaMinesSlider').value) || 80;
+        MEGA_SAFE = MEGA_TOTAL - MEGA_MINES;
 
         BOARD_SIZE = MEGA_COLS;
         TOTAL_CELLS = MEGA_TOTAL;
         totalSafeCells = MEGA_SAFE;
         selectedMines = MEGA_MINES;
-        openedSafeCount = state.opened.length;
-        minesCountDisplay.innerText = MEGA_MINES;
+        openedSafeCount = 0;
         currentWin = 0;
-        updateUI();
-        updateMegaUI(state);
-        renderMegaGrid(state);
+        gameActive = true;
 
-        const today = getTodayStr();
-        if (state.lastOpenDate === today) {
-            gameStatusSpan.innerText = `⏳ Ты уже открывал сегодня. Приходи завтра!`;
-            gameActive = false;
-        } else if (state.gameOver) {
-            gameStatusSpan.innerText = `🏆 Все безопасные клетки найдены! Сброс для новой игры.`;
-            gameActive = false;
-        } else {
-            gameStatusSpan.innerText = `💥 МЕГА МИНЫ: нажми на ячейку (1 в день)`;
-            gameActive = true;
-        }
+        // Генерируем свежую игру
+        const megaBoard = { mines: generateMegaMines(), opened: [], hitMines: [] };
+
+        minesCountDisplay.innerText = MEGA_MINES;
+        updateUI();
+        updateMegaUI(megaBoard);
+        renderMegaGrid(megaBoard);
+        gameStatusSpan.innerText = `💥 МЕГА МИНЫ | ${MEGA_MINES} мин | ${MEGA_SAFE} безопасных`;
+
+        // Сохраняем текущую игру в window для доступа из кликов
+        window._currentMegaState = megaBoard;
     }
 
     function updateMegaUI(state) {
         const opened = state ? state.opened.length : 0;
-        const pct = (opened / MEGA_SAFE) * 100;
+        const safe = MEGA_TOTAL - MEGA_MINES;
+        const pct = safe > 0 ? (opened / safe) * 100 : 0;
         document.getElementById('megaProgressFill').style.width = pct + '%';
-        document.getElementById('megaOpenedCount').textContent = opened + ' / ' + MEGA_SAFE;
-
-        const today = getTodayStr();
-        const canOpen = state && !state.gameOver && state.lastOpenDate !== today;
-        document.getElementById('megaDailyStatus').textContent = canOpen
-            ? 'Сегодня: можно открыть ✅'
-            : (state && state.gameOver ? '🏆 Все клетки найдены!' : 'Сегодня: уже открыто ⏳');
+        document.getElementById('megaOpenedCount').textContent = opened + ' / ' + safe;
+        document.getElementById('megaHitCount').textContent = '💣 взрывов: ' + (state ? (state.hitMines || []).length : 0);
     }
 
     function renderMegaGrid(state) {
@@ -811,33 +768,14 @@
     }
 
     function onMegaCellClick(idx, state) {
-        if (!gameActive) {
-            const today = getTodayStr();
-            if (state.lastOpenDate === today) {
-                gameStatusSpan.innerText = `⏳ Уже открывал сегодня. Приходи завтра!`;
-            } else if (state.gameOver) {
-                gameStatusSpan.innerText = `🏆 Все безопасные клетки найдены! Сброс для новой игры.`;
-            }
-            return;
-        }
-
-        const today = getTodayStr();
-        if (state.lastOpenDate === today) {
-            gameStatusSpan.innerText = `⏳ Уже открывал сегодня! Приходи завтра 🗓️`;
-            return;
-        }
+        if (!gameActive) return;
 
         const mineSet = new Set(state.mines);
 
-        // Сохраняем дату в любом случае (попал на мину или нет — лимит тратится)
-        state.lastOpenDate = today;
-        gameActive = false; // до завтра
-
         if (mineSet.has(idx)) {
-            // МИНА — отмечаем только эту ячейку, игра НЕ заканчивается
+            // МИНА — отмечаем, не заканчиваем игру
             if (!state.hitMines) state.hitMines = [];
             state.hitMines.push(idx);
-            saveMegaState(state);
 
             const div = gridContainer.children[idx];
             if (div) {
@@ -847,12 +785,11 @@
             }
             shakeGrid();
             updateMegaUI(state);
-            gameStatusSpan.innerText = `💥 БУМ! Мина! Но ты продолжаешь — приходи завтра 💪`;
+            gameStatusSpan.innerText = `💥 БУМ! Мина #${state.hitMines.length} — продолжай! 💪`;
         } else {
             // Безопасная ячейка!
             state.opened.push(idx);
             openedSafeCount = state.opened.length;
-            saveMegaState(state);
 
             const div = gridContainer.children[idx];
             if (div) {
@@ -864,12 +801,12 @@
             updateUI();
             updateMegaUI(state);
 
-            if (state.opened.length >= MEGA_SAFE) {
-                gameStatusSpan.innerText = `🏆 ЛЕГЕНДА! Все ${MEGA_SAFE} безопасных клеток найдены!`;
-                state.gameOver = true;
-                saveMegaState(state);
+            const safe = MEGA_TOTAL - MEGA_MINES;
+            if (state.opened.length >= safe) {
+                gameStatusSpan.innerText = `🏆 ЛЕГЕНДА! Все ${safe} безопасных найдены! (взрывов: ${(state.hitMines||[]).length})`;
+                gameActive = false;
             } else {
-                gameStatusSpan.innerText = `💎 Безопасно! (${state.opened.length}/${MEGA_SAFE}) Жди завтра!`;
+                gameStatusSpan.innerText = `💎 Безопасно! (${state.opened.length}/${safe}) Продолжай!`;
             }
         }
     }
@@ -990,6 +927,12 @@
         sizeBadge.textContent = n + '×' + n;
         minesHint.textContent = `макс. ${n*n-1} из ${n*n} ячеек`;
         minesInput.max = n*n-1;
+    });
+
+    document.getElementById('megaMinesSlider').addEventListener('input', () => {
+        const v = parseInt(document.getElementById('megaMinesSlider').value);
+        document.getElementById('megaMinesBadge').textContent = v;
+        document.getElementById('megaSafeHint').textContent = `безопасных: ${MEGA_TOTAL - v} из ${MEGA_TOTAL}`;
     });
 
     // ═══════════════════════════════════════
