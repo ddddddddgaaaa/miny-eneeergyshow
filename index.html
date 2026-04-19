@@ -1,949 +1,519 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>МИНЫ ОТ vadyms22</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+import { useState, useEffect, useRef, useCallback } from "react";
 
-        body {
-            transition: background 0.3s, color 0.2s;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            font-family: 'Orbitron', 'Segoe UI', monospace;
-            padding: 20px;
-        }
+const MEGA_COLS = 10, MEGA_ROWS = 10, MEGA_TOTAL = 100;
+const CLOUD_KEY = "mega_mines_state";
 
-        .game-container {
-            max-width: 1600px;
-            width: 100%;
-            backdrop-filter: blur(4px);
-            border-radius: 48px;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.15);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 28px;
-            align-items: flex-start;
-        }
+// ── CSS глобальный ──────────────────────────────────────────────────
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+*{box-sizing:border-box;user-select:none;margin:0;padding:0}
+.app{min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:20px;font-family:'Orbitron','Segoe UI',monospace;transition:background .3s}
+.app.dark{background:linear-gradient(145deg,#1e1a3a,#2a2448)}
+.app.light{background:linear-gradient(145deg,#e6e0f5,#d9cef0)}
+.app.neon{background:linear-gradient(145deg,#0a0f2a,#0b0a20)}
+.app.mint{background:linear-gradient(145deg,#b8f2e6,#9fe0d9)}
 
-        .left-panel {
-            flex: 0 0 300px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+.gc{max-width:1600px;width:100%;border-radius:48px;padding:24px;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;backdrop-filter:blur(4px);box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.dark .gc{background:rgba(45,35,75,.75);border:1px solid #bf9eff}
+.light .gc{background:#f5efffdd;border:1px solid #b48aff}
+.neon .gc{background:#0f0c26cc;border:1px solid #ff44e6;box-shadow:0 0 20px #ff44e6}
+.mint .gc{background:#c4f2ead9;border:1px solid #2baa8f}
 
-        .right-panel {
-            flex: 1 1 0;
-            min-width: 0;
-            overflow: auto;
-            display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
-            padding: 4px;
-        }
+.lp{flex:0 0 300px;display:flex;flex-direction:column;gap:16px}
+.rp{flex:1 1 0;min-width:0;overflow:auto;display:flex;align-items:flex-start;justify-content:flex-start;padding:4px}
 
-        .grid-bg {
-            display: inline-flex;
-            padding: 14px;
-            border-radius: 32px;
-            border: 2px solid #b48aff;
-            background: rgba(0,0,0,0.25);
-            box-shadow: inset 0 0 60px rgba(100,60,200,0.18), 0 0 30px rgba(100,50,200,0.2);
-            flex-shrink: 0;
-        }
+.card{border-radius:32px;padding:20px;backdrop-filter:blur(4px);display:flex;flex-direction:column;gap:14px}
+.dark .card{background:#2d2350dd;border:1px solid #bf9eff}
+.light .card{background:#faf5ffdd;border:1px solid #b48aff}
+.neon .card{background:#1a0e30cc;border:1px solid #ff44e6}
+.mint .card{background:#dcfff7dd;border:1px solid #2baa8f}
 
-        .grid {
-            display: grid;
-            gap: 8px;
-            transition: transform 0.1s ease;
-        }
+.lbl{font-size:.72rem;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.dark .lbl,.dark .itext{color:#f0eaff}
+.light .lbl,.light .itext{color:#2a1a5e}
+.neon .lbl,.neon .itext{color:#fff;text-shadow:0 0 3px #ff44e6}
+.mint .lbl,.mint .itext{color:#1b5c4f}
 
-        .grid.shake {
-            animation: shake 0.3s cubic-bezier(0.36,0.07,0.19,0.97) both;
-        }
+input[type=number]{border-radius:40px;padding:9px 16px;font-family:'Orbitron',monospace;font-size:.95rem;outline:none;width:100%;border:1px solid}
+.dark input{background:#1f1940;border-color:#b77eff;color:#fff}
+.light input{background:#ffffffcc;border-color:#9b6eff;color:#2d1b5e}
+.neon input{background:#1f1140;border-color:#ff66ff;color:#fff}
+.mint input{background:#ffffffcc;border-color:#2baa8f;color:#1e5a4f}
 
-        @keyframes shake {
-            0%{transform:translate(1px,1px) rotate(0deg)}
-            10%{transform:translate(-1px,-2px) rotate(-1deg)}
-            20%{transform:translate(-3px,0px) rotate(1deg)}
-            30%{transform:translate(3px,2px) rotate(0deg)}
-            40%{transform:translate(1px,-1px) rotate(1deg)}
-            50%{transform:translate(-1px,2px) rotate(-1deg)}
-            60%{transform:translate(-3px,1px) rotate(0deg)}
-            70%{transform:translate(3px,1px) rotate(-1deg)}
-            80%{transform:translate(-1px,-1px) rotate(1deg)}
-            90%{transform:translate(1px,2px) rotate(0deg)}
-            100%{transform:translate(1px,-2px) rotate(-1deg)}
-        }
+.slider-wrap{display:flex;align-items:center;gap:10px}
+input[type=range]{-webkit-appearance:none;flex:1;height:8px;border-radius:8px;outline:none;cursor:pointer;background:rgba(180,138,255,.3)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ff5e8e,#b5185a);box-shadow:0 0 8px #ff5e8e;cursor:pointer;transition:transform .1s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.badge{min-width:54px;text-align:center;font-size:1rem;font-weight:700;padding:5px 10px;border-radius:18px;background:rgba(180,138,255,.2);border:1px solid #b48aff}
+.dark .badge{color:#f0eaff}.light .badge{color:#2a1a5e}.neon .badge{color:#fff;border-color:#ff44e6}.mint .badge{color:#1b5c4f;border-color:#2baa8f}
+.hint{font-size:.68rem;opacity:.7;margin-top:-6px}
 
-        .cell {
-            width: 64px;
-            height: 64px;
-            flex-shrink: 0;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.2,0.9,0.4,1.1);
-            border: 1px solid #c7a5ff;
-            text-shadow: 0 0 3px rgba(0,0,0,0.3);
-            position: relative;
-        }
+.btn{font-family:'Orbitron',monospace;font-weight:700;font-size:.85rem;padding:9px 16px;border-radius:40px;cursor:pointer;transition:all .2s;text-align:center;border:1px solid;background:rgba(0,0,0,.2)}
+.btn:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.1)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+.dark .btn{background:#3a2b60cc;border-color:#c49eff;color:#fff}
+.light .btn{background:#d9caffcc;border-color:#8c6ad6;color:#2d1b5e}
+.neon .btn{background:#3b1b66cc;border-color:#ff88ff;color:#fff}
+.mint .btn{background:#b2e6dbcc;border-color:#2baa8f;color:#1b5c4f}
 
-        .cell:hover:not(.revealed):not(.flagged) {
-            filter: brightness(1.3);
-            transform: scale(0.94);
-        }
+.btn-play{background:radial-gradient(circle at 30% 10%,#ff5e8e,#b5185a)!important;border:none!important;font-size:1.05rem!important;letter-spacing:2px;color:#fff0f5!important;text-shadow:0 0 5px #ff0095;box-shadow:0 0 12px #ff5e8e;width:100%}
+.btn-cash{background:radial-gradient(circle at 30% 10%,#2ee68a,#0e8248)!important;border:none!important;flex:1;color:#fff!important}
+.btn-dbl{background:radial-gradient(circle at 30% 10%,#ffb347,#d4650a)!important;border:none!important;flex:1;color:#fff!important}
+.btn-theme{background:linear-gradient(135deg,#7f6bc2,#5e43a3)!important;border:1px solid #e5ccff!important;color:#fff!important}
+.btn-cloud{background:radial-gradient(circle at 30% 10%,#38bdf8,#0369a1)!important;border:none!important;color:#fff!important;width:100%}
+.btn-reset{background:rgba(180,0,60,.3)!important;border-color:#ff5e8e!important;color:#ffb0d0!important;font-size:.75rem;width:100%}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px}
 
-        .cell.revealed {
-            box-shadow: inset 0 0 12px #dbb0ff, 0 0 6px #c58eff;
-            transform: scale(0.92);
-            cursor: default;
-        }
+.mode-row{display:flex;gap:8px}
+.mbtn{flex:1;padding:10px 8px;border-radius:24px;border:2px solid #b48aff;background:rgba(0,0,0,.2);color:#fff;font-family:'Orbitron',monospace;font-weight:700;font-size:.72rem;cursor:pointer;transition:all .2s;text-align:center}
+.mbtn.act-c{background:radial-gradient(circle at 30% 10%,#b48aff,#6a2adf);border-color:#fff;box-shadow:0 0 14px #b48aff}
+.mbtn.act-m{background:radial-gradient(circle at 30% 10%,#ff5e8e,#b5185a);border-color:#ffb0d0;box-shadow:0 0 14px #ff5e8e;animation:megaPulse 2s infinite}
+@keyframes megaPulse{0%,100%{box-shadow:0 0 14px #ff5e8e}50%{box-shadow:0 0 28px #ff5e8e,0 0 50px #ff2060}}
 
-        .cell.mine-hit {
-            box-shadow: inset 0 0 20px #ff2200, 0 0 12px #ff4400 !important;
-            background: radial-gradient(ellipse at center, #ff4400, #8b0000) !important;
-            animation: mineFlash 0.4s ease;
-        }
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-radius:40px;background:rgba(0,0,0,.2)}
+.dark .stat-row,.neon .stat-row{color:#f0eaff}.light .stat-row{color:#2a1a5e}.mint .stat-row{color:#1b5c4f}
+.win-val{font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,#e2ff7a,#ffd966);-webkit-background-clip:text;background-clip:text;color:transparent}
+.status{font-size:.78rem;text-align:center;padding:10px;border-radius:28px;background:rgba(0,0,0,.3)}
+.dark .status{background:#1f1940aa;color:#fff}.light .status{background:#e2d6ffaa;color:#2a1a5e}.neon .status{background:#1a0e30aa;color:#fff;border:1px solid #ff44e6}.mint .status{background:#d4fff5aa;color:#1a6b5c}
 
-        @keyframes mineFlash {
-            0%{transform:scale(1)} 30%{transform:scale(1.15)} 100%{transform:scale(0.92)}
-        }
+/* МЕГА-карточка */
+.mega-card{border-radius:24px;padding:16px;background:linear-gradient(135deg,rgba(180,0,60,.3),rgba(80,0,180,.3));border:2px solid #ff5e8e;box-shadow:0 0 20px rgba(255,94,142,.3);display:flex;flex-direction:column;gap:10px}
+.mega-title{font-size:1rem;font-weight:700;text-align:center;color:#ff9ec0;text-shadow:0 0 8px #ff5e8e;letter-spacing:2px}
+.mega-sub{font-size:.72rem;color:#ffcce0;line-height:1.5;text-align:center}
+.prog-bar{width:100%;height:14px;background:rgba(0,0,0,.4);border-radius:10px;overflow:hidden;border:1px solid #ff5e8e44}
+.prog-fill{height:100%;background:linear-gradient(90deg,#ff5e8e,#ffb347);border-radius:10px;transition:width .5s;box-shadow:0 0 8px #ff5e8e}
+.prog-row{display:flex;justify-content:space-between;font-size:.75rem;color:#ffb0d0}
+.cloud-status{font-size:.7rem;text-align:center;padding:5px 10px;border-radius:16px}
+.cloud-ok{background:rgba(0,180,80,.2);color:#4eff9e;border:1px solid #4eff9e44}
+.cloud-err{background:rgba(180,0,0,.2);color:#ff6666;border:1px solid #ff444444}
+.cloud-load{background:rgba(50,100,255,.2);color:#88aaff;border:1px solid #88aaff44}
 
-        .cell.flagged { cursor: pointer; }
-        .cell.flagged::after { content: '🚩'; font-size: 1.4rem; }
+/* СЕТКА */
+.grid-bg{display:inline-flex;padding:14px;border-radius:32px;flex-shrink:0}
+.dark .grid-bg{border:2px solid #b48aff;background:rgba(20,12,50,.6);box-shadow:inset 0 0 60px rgba(120,70,220,.2),0 0 30px rgba(100,50,200,.3)}
+.light .grid-bg{border:2px solid #9b6eff;background:rgba(200,180,255,.25)}
+.neon .grid-bg{border:2px solid #ff44e6;background:rgba(10,5,30,.7);box-shadow:inset 0 0 60px rgba(200,50,220,.15),0 0 30px #ff44e640}
+.mint .grid-bg{border:2px solid #2baa8f;background:rgba(0,80,60,.15)}
 
-        .cell.mega-safe {
-            background: radial-gradient(ellipse at 30% 35%, #2a6e3a, #1a4a28) !important;
-            border-color: #4cff80 !important;
-            box-shadow: inset 0 0 12px #2aff60, 0 0 8px #1aff50 !important;
-        }
+.grid{display:grid;gap:8px}
+.grid.shake{animation:shake .3s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes shake{0%{transform:translate(1px,1px)}10%{transform:translate(-1px,-2px)}20%{transform:translate(-3px,0)}30%{transform:translate(3px,2px)}40%{transform:translate(1px,-1px)}50%{transform:translate(-1px,2px)}60%{transform:translate(-3px,1px)}70%{transform:translate(3px,1px)}80%{transform:translate(-1px,-1px)}90%{transform:translate(1px,2px)}100%{transform:translate(1px,-2px)}}
 
-        .cell.mega-mine-revealed {
-            background: radial-gradient(ellipse at center, #5a0000, #300000) !important;
-            border-color: #ff4444 !important;
-            box-shadow: inset 0 0 12px #ff0000, 0 0 6px #cc0000 !important;
-            cursor: default;
-            opacity: 0.6;
-        }
+.cell{width:64px;height:64px;flex-shrink:0;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s cubic-bezier(.2,.9,.4,1.1);border:1px solid #c7a5ff;position:relative}
+.dark .cell{background:radial-gradient(ellipse at 30% 35%,#463b75,#2a1f4e);box-shadow:0 4px 0 #2a1b55;color:#fff}
+.light .cell{background:radial-gradient(ellipse at 30% 35%,#f0e9ff,#d9caff);box-shadow:0 4px 0 #9f86d6;color:#1f0e42}
+.neon .cell{background:radial-gradient(ellipse at 30% 35%,#6a2e8a,#3a1a60);box-shadow:0 4px 0 #ff44e6;border-color:#ff88ff;color:#fff}
+.mint .cell{background:radial-gradient(ellipse at 30% 35%,#c5fff0,#a3f0e0);box-shadow:0 4px 0 #2baa8f;color:#0e4a3e;border-color:#3ecfb0}
+.cell:hover:not(.rev){filter:brightness(1.3);transform:scale(.94)}
+.cell.rev{box-shadow:inset 0 0 12px #dbb0ff,0 0 6px #c58eff!important;transform:scale(.92);cursor:default}
+.cell.mine-hit{box-shadow:inset 0 0 20px #ff2200,0 0 12px #ff4400!important;background:radial-gradient(ellipse at center,#ff4400,#8b0000)!important;animation:mFlash .4s ease}
+@keyframes mFlash{0%{transform:scale(1)}30%{transform:scale(1.15)}100%{transform:scale(.92)}}
+.cell.mega-safe{background:radial-gradient(ellipse at 30% 35%,#2a6e3a,#1a4a28)!important;border-color:#4cff80!important;box-shadow:inset 0 0 12px #2aff60,0 0 8px #1aff50!important}
+.cell.hl{animation:gGlow .8s forwards}
+@keyframes gGlow{0%{background:rgba(76,175,80,.2);transform:scale(1)}25%{background:#4caf50;box-shadow:0 0 18px #8bc34a;transform:scale(.94)}50%{background:#66bb6a;box-shadow:0 0 28px #7cb342;transform:scale(.96)}100%{background:rgba(76,175,80,0);transform:scale(1)}}
 
-        .cell.today-opened {
-            animation: todayPulse 1s ease forwards;
-        }
+/* Рулетка */
+.ov{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;z-index:1000}
+.rc{border-radius:48px;padding:20px;text-align:center;border:2px solid gold;box-shadow:0 0 40px rgba(255,215,0,.5);width:360px;background:#1e1a3a;color:#fff;font-family:'Orbitron',monospace}
+.rc h3{margin-bottom:4px}
+.spin-btn{background:radial-gradient(circle at 30% 10%,#ffb347,#d4650a);border:none;padding:10px 20px;border-radius:40px;font-weight:700;margin:10px 5px;cursor:pointer;color:#fff;font-family:'Orbitron',monospace}
+.close-btn{background:gold;border:none;padding:10px 20px;border-radius:40px;font-weight:700;margin:10px 5px;cursor:pointer;color:#000}
 
-        @keyframes todayPulse {
-            0%{box-shadow:0 0 0 #ffd700}
-            50%{box-shadow:0 0 20px #ffd700, 0 0 40px #ffaa00}
-            100%{box-shadow:inset 0 0 12px #dbb0ff, 0 0 6px #c58eff}
-        }
+@media(max-width:750px){.gc{flex-direction:column}.lp{flex:none;width:100%}.rp{width:100%}}
+`;
 
-        .cell.highlight {
-            animation: greenGlow 0.8s cubic-bezier(0.2,0.9,0.4,1.1) forwards;
-        }
+function generateMines(total, count) {
+  const s = new Set();
+  while (s.size < count) s.add(Math.floor(Math.random() * total));
+  return Array.from(s);
+}
 
-        @keyframes greenGlow {
-            0%  {background:rgba(76,175,80,0.2);box-shadow:0 0 0 #4caf50;transform:scale(1)}
-            25% {background:#4caf50;box-shadow:0 0 18px #8bc34a,0 0 8px #4caf50;transform:scale(0.94)}
-            50% {background:#66bb6a;box-shadow:0 0 28px #7cb342,0 0 12px #4caf50;transform:scale(0.96)}
-            75% {background:#81c784;box-shadow:0 0 18px #8bc34a;transform:scale(0.95)}
-            100%{background:rgba(76,175,80,0);box-shadow:0 0 0 #4caf50;transform:scale(1)}
-        }
+function RouletteOverlay({ onClose }) {
+  const canvasRef = useRef(null);
+  const spinning = useRef(false);
+  const angle = useRef(0);
+  const sectors = [{ label: "x2", color: "#4CAF50", v: "win" }, { label: "0", color: "#F44336", v: "lose" }];
 
-        /* ── Режим-переключатель ── */
-        .mode-switch {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
-        .mode-btn {
-            flex: 1;
-            padding: 10px 8px;
-            border-radius: 24px;
-            border: 2px solid #b48aff;
-            background: rgba(0,0,0,0.2);
-            color: #fff;
-            font-family: 'Orbitron', monospace;
-            font-weight: bold;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-        }
-        .mode-btn.active {
-            background: radial-gradient(circle at 30% 10%, #b48aff, #6a2adf);
-            border-color: #fff;
-            box-shadow: 0 0 14px #b48aff;
-        }
-        .mode-btn.mega-active {
-            background: radial-gradient(circle at 30% 10%, #ff5e8e, #b5185a);
-            border-color: #ffb0d0;
-            box-shadow: 0 0 14px #ff5e8e;
-            animation: megaPulse 2s infinite;
-        }
-        @keyframes megaPulse {
-            0%,100%{box-shadow:0 0 14px #ff5e8e}
-            50%{box-shadow:0 0 28px #ff5e8e, 0 0 50px #ff2060}
-        }
+  const draw = useCallback((a) => {
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const cx = 150, cy = 150, r = 140, sa = Math.PI;
+    ctx.clearRect(0, 0, 300, 300);
+    sectors.forEach((sec, i) => {
+      const s = a + i * sa, e = s + sa;
+      ctx.beginPath(); ctx.arc(cx, cy, r, s, e); ctx.lineTo(cx, cy);
+      ctx.fillStyle = sec.color; ctx.fill();
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(s + sa / 2);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 26px Orbitron"; ctx.fillText(sec.label, r - 50, 10);
+      ctx.restore();
+    });
+    ctx.beginPath(); ctx.arc(cx, cy, 20, 0, 2 * Math.PI);
+    ctx.fillStyle = "#222"; ctx.fill();
+    ctx.strokeStyle = "gold"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + 12, cy - r - 4); ctx.lineTo(cx - 12, cy - r - 4); ctx.lineTo(cx, cy - r - 22);
+    ctx.fillStyle = "gold"; ctx.fill();
+  }, []);
 
-        /* МЕГА-панель */
-        .mega-info-card {
-            border-radius: 24px;
-            padding: 16px;
-            background: linear-gradient(135deg, rgba(180,0,60,0.3), rgba(80,0,180,0.3));
-            border: 2px solid #ff5e8e;
-            box-shadow: 0 0 20px rgba(255,94,142,0.3);
-            display: none;
-        }
-        .mega-info-card.visible { display: block; }
-        .mega-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            text-align: center;
-            color: #ff9ec0;
-            text-shadow: 0 0 8px #ff5e8e;
-            margin-bottom: 12px;
-            letter-spacing: 2px;
-        }
-        .mega-progress-bar {
-            width: 100%;
-            height: 14px;
-            background: rgba(0,0,0,0.4);
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 8px 0;
-            border: 1px solid #ff5e8e44;
-        }
-        .mega-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff5e8e, #ffb347);
-            border-radius: 10px;
-            transition: width 0.5s ease;
-            box-shadow: 0 0 8px #ff5e8e;
-        }
-        .mega-stats-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            color: #ffb0d0;
-            margin-top: 6px;
-        }
+  useEffect(() => { draw(angle.current); }, [draw]);
 
-        .daily-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            background: linear-gradient(135deg, #ffd700, #ff8c00);
-            color: #000;
-            font-size: 0.7rem;
-            font-weight: bold;
-            margin-left: 6px;
-            box-shadow: 0 0 8px #ffd700;
-        }
+  const spin = () => {
+    if (spinning.current) return;
+    spinning.current = true;
+    const total = (5 + Math.random() * 5) * 2 * Math.PI;
+    const start = angle.current, t0 = performance.now();
+    const animate = (now) => {
+      const t = Math.min(1, (now - t0) / 1500), ease = 1 - Math.pow(1 - t, 3);
+      draw(start + total * ease);
+      if (t < 1) { requestAnimationFrame(animate); return; }
+      angle.current = (start + total) % (2 * Math.PI);
+      draw(angle.current); spinning.current = false;
+      const ptr = ((-Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+      let winner = sectors[0];
+      sectors.forEach((sec, i) => {
+        let ns = ((angle.current + i * Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        let ne = ((angle.current + (i + 1) * Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        if (ns < ne ? ptr >= ns && ptr < ne : ptr >= ns || ptr < ne) winner = sec;
+      });
+      setTimeout(() => onClose(winner.v === "win"), 200);
+    };
+    requestAnimationFrame(animate);
+  };
 
-        /* ── Панель управления ── */
-        .panel-card {
-            border-radius: 32px;
-            padding: 20px;
-            border: 1px solid;
-            backdrop-filter: blur(4px);
-            transition: all 0.2s;
-        }
-
-        .menu-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
-        .menu-label { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
-
-        .input-field {
-            border-radius: 40px;
-            padding: 9px 16px;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.95rem;
-            outline: none;
-            width: 100%;
-            border: 1px solid;
-        }
-
-        .size-slider-wrap { display: flex; align-items: center; gap: 10px; }
-        .size-slider {
-            -webkit-appearance: none;
-            flex: 1; height: 8px; border-radius: 8px; outline: none; cursor: pointer;
-            background: rgba(180,138,255,0.3);
-        }
-        .size-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 22px; height: 22px; border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #ff5e8e, #b5185a);
-            box-shadow: 0 0 8px #ff5e8e; cursor: pointer; transition: transform 0.1s;
-        }
-        .size-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
-        .size-value-badge {
-            min-width: 54px; text-align: center; font-size: 1rem; font-weight: bold;
-            padding: 5px 10px; border-radius: 18px;
-            background: rgba(180,138,255,0.2); border: 1px solid #b48aff;
-        }
-
-        .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
-
-        .option-btn {
-            font-family: 'Orbitron', monospace; font-weight: bold; font-size: 0.85rem;
-            padding: 9px 16px; border-radius: 40px; cursor: pointer;
-            transition: all 0.2s ease; text-align: center; border: 1px solid; background: rgba(0,0,0,0.2);
-        }
-        .option-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
-
-        .play-btn {
-            background: radial-gradient(circle at 30% 10%, #ff5e8e, #b5185a);
-            border: none; font-size: 1.1rem; font-weight: bold; letter-spacing: 2px;
-            color: #fff0f5; text-shadow: 0 0 5px #ff0095; box-shadow: 0 0 12px #ff5e8e;
-            width: 100%;
-        }
-        .cashout-btn { background: radial-gradient(circle at 30% 10%, #2ee68a, #0e8248); border: none; flex: 1; color:#fff; }
-        .double-btn  { background: radial-gradient(circle at 30% 10%, #ffb347, #d4650a); border: none; flex: 1; color:#fff; }
-        .theme-btn   { background: linear-gradient(135deg, #7f6bc2, #5e43a3); border: 1px solid #e5ccff; color:#fff; }
-
-        .stats-grid { display: flex; flex-direction: column; gap: 10px; }
-        .stat-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 16px; border-radius: 40px; flex-wrap: wrap; gap: 4px;
-            background: rgba(0,0,0,0.2);
-        }
-        .win-value {
-            font-size: 1.4rem; font-weight: bold;
-            background: linear-gradient(135deg, #e2ff7a, #ffd966);
-            -webkit-background-clip: text; background-clip: text; color: transparent;
-        }
-        .info-text { font-weight: bold; font-size: 0.85rem; }
-
-        .status-text {
-            font-size: 0.8rem; text-align: center; padding: 10px;
-            border-radius: 28px; background: rgba(0,0,0,0.3);
-        }
-
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-
-        /* ── Рулетка ── */
-        .roulette-overlay {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 1000; font-family: 'Orbitron', monospace;
-        }
-        .roulette-card {
-            border-radius: 48px; padding: 20px; text-align: center;
-            border: 2px solid gold; box-shadow: 0 0 40px rgba(255,215,0,0.5);
-            width: 360px; background: #1e1a3a; color: white;
-        }
-        canvas { margin: 15px auto; display: block; border-radius: 50%; }
-        .spin-roulette-btn {
-            background: radial-gradient(circle at 30% 10%, #ffb347, #d4650a);
-            border: none; padding: 10px 20px; border-radius: 40px; font-weight: bold;
-            margin: 10px 5px; cursor: pointer; color: white; font-family: 'Orbitron', monospace;
-        }
-        .close-roulette {
-            background: gold; border: none; padding: 10px 20px; border-radius: 40px;
-            font-weight: bold; margin: 10px 5px; cursor: pointer; color: black;
-        }
-
-        /* Скрываемые классы */
-        .hidden { display: none !important; }
-
-        @media (max-width: 750px) {
-            .game-container { flex-direction: column; }
-            .left-panel { flex: none; width: 100%; }
-            .right-panel { width: 100%; }
-        }
-
-        /* ══ ТЕМЫ ══ */
-        body.dark { background: linear-gradient(145deg, #1e1a3a, #2a2448); }
-        body.dark .game-container { background: rgba(45,35,75,0.75); border-color: #bf9eff; }
-        body.dark .panel-card { background: #2d2350dd; border-color: #bf9eff; }
-        body.dark .menu-label, body.dark .info-text { color: #f0eaff; }
-        body.dark .stat-row { color: #f0eaff; }
-        body.dark .input-field { background: #1f1940; border-color: #b77eff; color: #ffffff; }
-        body.dark .option-btn { background: #3a2b60cc; border-color: #c49eff; color: #ffffff; }
-        body.dark .cell { background: radial-gradient(ellipse at 30% 35%, #463b75, #2a1f4e); box-shadow: 0 4px 0 #2a1b55; color: #ffffff; }
-        body.dark .status-text { background: #1f1940aa; color: #ffffff; }
-        body.dark .size-value-badge { color: #f0eaff; }
-        body.dark .grid-bg { border-color: #b48aff; background: rgba(20,12,50,0.6); box-shadow: inset 0 0 60px rgba(120,70,220,0.2), 0 0 30px rgba(100,50,200,0.3); }
-
-        body.light { background: linear-gradient(145deg, #e6e0f5, #d9cef0); }
-        body.light .game-container { background: #f5efffdd; border-color: #b48aff; }
-        body.light .panel-card { background: #faf5ffdd; border-color: #b48aff; }
-        body.light .menu-label, body.light .info-text { color: #2a1a5e; }
-        body.light .stat-row { color: #2a1a5e; }
-        body.light .input-field { background: #ffffffcc; border-color: #9b6eff; color: #2d1b5e; }
-        body.light .option-btn { background: #d9caffcc; border-color: #8c6ad6; color: #2d1b5e; }
-        body.light .cell { background: radial-gradient(ellipse at 30% 35%, #f0e9ff, #d9caff); box-shadow: 0 4px 0 #9f86d6; color: #1f0e42; }
-        body.light .status-text { background: #e2d6ffaa; color: #2a1a5e; }
-        body.light .size-value-badge { color: #2a1a5e; }
-        body.light .grid-bg { border-color: #9b6eff; background: rgba(200,180,255,0.25); }
-
-        body.neon { background: linear-gradient(145deg, #0a0f2a, #0b0a20); }
-        body.neon .game-container { background: #0f0c26cc; border-color: #ff44e6; box-shadow: 0 0 20px #ff44e6; }
-        body.neon .panel-card { background: #1a0e30cc; border-color: #ff44e6; }
-        body.neon .menu-label, body.neon .info-text { color: #fff; text-shadow: 0 0 3px #ff44e6; }
-        body.neon .stat-row { color: #fff; }
-        body.neon .input-field { background: #1f1140; border-color: #ff66ff; color: #ffffff; }
-        body.neon .option-btn { background: #3b1b66cc; border-color: #ff88ff; color: #ffffff; }
-        body.neon .cell { background: radial-gradient(ellipse at 30% 35%, #6a2e8a, #3a1a60); box-shadow: 0 4px 0 #ff44e6; border-color: #ff88ff; color: #ffffff; }
-        body.neon .status-text { background: #1a0e30aa; color: #ffffff; border: 1px solid #ff44e6; }
-        body.neon .size-value-badge { color: #fff; border-color: #ff44e6; }
-        body.neon .grid-bg { border-color: #ff44e6; background: rgba(10,5,30,0.7); box-shadow: inset 0 0 60px rgba(200,50,220,0.15), 0 0 30px #ff44e640; }
-
-        body.mint { background: linear-gradient(145deg, #b8f2e6, #9fe0d9); }
-        body.mint .game-container { background: #c4f2ead9; border-color: #2baa8f; }
-        body.mint .panel-card { background: #dcfff7dd; border-color: #2baa8f; }
-        body.mint .menu-label, body.mint .info-text { color: #1b5c4f; }
-        body.mint .stat-row { color: #1b5c4f; }
-        body.mint .input-field { background: #ffffffcc; border-color: #2baa8f; color: #1e5a4f; }
-        body.mint .option-btn { background: #b2e6dbcc; border-color: #2baa8f; color: #1b5c4f; }
-        body.mint .cell { background: radial-gradient(ellipse at 30% 35%, #c5fff0, #a3f0e0); box-shadow: 0 4px 0 #2baa8f; color: #0e4a3e; border-color: #3ecfb0; }
-        body.mint .status-text { background: #d4fff5aa; color: #1a6b5c; }
-        body.mint .size-value-badge { color: #1b5c4f; border-color: #2baa8f; }
-        body.mint .grid-bg { border-color: #2baa8f; background: rgba(0,80,60,0.15); }
-    </style>
-</head>
-<body class="dark">
-<div class="game-container">
-
-    <div class="left-panel">
-        <div class="panel-card">
-            <!-- Переключатель режимов -->
-            <div class="menu-group">
-                <div class="menu-label">🎮 РЕЖИМ ИГРЫ</div>
-                <div class="mode-switch">
-                    <div class="mode-btn active" id="modeClassicBtn" onclick="switchMode('classic')">⚔️ КЛАССИК</div>
-                    <div class="mode-btn" id="modeMegaBtn" onclick="switchMode('mega')">💥 МЕГА МИНЫ</div>
-                </div>
-            </div>
-
-            <!-- Классические настройки -->
-            <div id="classicSettings">
-                <div class="menu-group">
-                    <div class="menu-label">🔲 РАЗМЕР ПОЛЯ (NxN)</div>
-                    <div class="size-slider-wrap">
-                        <input type="range" id="sizeSlider" class="size-slider" min="3" max="12" value="6" step="1">
-                        <div class="size-value-badge" id="sizeBadge">6×6</div>
-                    </div>
-                </div>
-                <div class="menu-group">
-                    <div class="menu-label">💣 КОЛИЧЕСТВО МИН</div>
-                    <input type="number" id="minesInput" class="input-field" min="1" max="35" value="5" step="1">
-                    <div class="menu-label" id="minesHint" style="font-size:0.68rem;opacity:0.65;">макс. 35 из 36 ячеек</div>
-                </div>
-                <div class="menu-group">
-                    <div class="menu-label">💰 НАГРАДА ЗА ЯЧЕЙКУ (₽)</div>
-                    <input type="number" id="rewardInput" class="input-field" min="1" step="1" value="10">
-                </div>
-            </div>
-
-            <!-- МЕГА настройки -->
-            <div id="megaSettings" class="hidden">
-                <div class="mega-info-card visible">
-                    <div class="mega-title">💥 МЕГА МИНЫ 💥</div>
-                    <div class="menu-group" style="margin-bottom:10px;">
-                        <div class="menu-label" style="color:#ffb0d0;">💣 КОЛ-ВО МИН (из 100)</div>
-                        <div class="size-slider-wrap">
-                            <input type="range" id="megaMinesSlider" class="size-slider" min="1" max="99" value="80" step="1">
-                            <div class="size-value-badge" id="megaMinesBadge" style="color:#ffb0d0;border-color:#ff5e8e;">80</div>
-                        </div>
-                        <div style="font-size:0.68rem;color:#ff9ec0;opacity:0.8;" id="megaSafeHint">безопасных: 20 из 100</div>
-                    </div>
-                    <div style="margin-top:4px;">
-                        <div style="font-size:0.7rem;color:#ffb0d0;margin-bottom:4px;">ОТКРЫТО БЕЗОПАСНЫХ:</div>
-                        <div class="mega-progress-bar">
-                            <div class="mega-progress-fill" id="megaProgressFill" style="width:0%"></div>
-                        </div>
-                        <div class="mega-stats-row">
-                            <span id="megaOpenedCount">0 / 20</span>
-                            <span id="megaHitCount">💣 взрывов: 0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <button id="startGameBtn" class="option-btn play-btn" style="margin-top:12px;">🎮 НОВАЯ ИГРА</button>
-            <div class="button-group" style="margin-top:12px;" id="classicBtns">
-                <button id="cashoutBtn" class="option-btn cashout-btn" disabled>💎 ЗАБРАТЬ</button>
-                <button id="doubleBtn"  class="option-btn double-btn"  disabled>🎡 РУЛЕТКА</button>
-            </div>
-            <div class="button-group" style="margin-top:12px;">
-                <button id="themeDark"  class="option-btn theme-btn">🌑 Тёмная</button>
-                <button id="themeLight" class="option-btn theme-btn">☀️ Светлая</button>
-                <button id="themeNeon"  class="option-btn theme-btn">💜 Неон</button>
-                <button id="themeMint"  class="option-btn theme-btn">🍃 Мятная</button>
-            </div>
-        </div>
-
-        <div class="panel-card stats-grid">
-            <div class="stat-row">
-                <span class="info-text">✨ ВЫИГРЫШ:</span>
-                <span><span class="win-value" id="currentWin">0</span> ₽</span>
-            </div>
-            <div class="stat-row">
-                <span class="info-text">💣 МИН:</span>
-                <span class="info-text" id="minesCountDisplay">5</span>
-            </div>
-            <div class="stat-row">
-                <span class="info-text">💎 ОТКРЫТО:</span>
-                <span class="info-text"><span id="openedSafeDisplay">0</span> <span id="totalSafeDisplay">/ 31</span></span>
-            </div>
-        </div>
-
-        <div class="status-text" id="gameStatus">⚡ Настрой игру и нажми "НОВАЯ ИГРА"</div>
+  return (
+    <div className="ov">
+      <div className="rc">
+        <h3>🎡 КОЛЕСО ФОРТУНЫ 🎡</h3>
+        <canvas ref={canvasRef} width={300} height={300} style={{ borderRadius: "50%", margin: "15px auto", display: "block" }} />
+        <button className="spin-btn" onClick={spin}>КРУТИТЬ</button>
+        <button className="close-btn" onClick={() => !spinning.current && onClose(null)}>ЗАКРЫТЬ</button>
+      </div>
     </div>
+  );
+}
 
-    <div class="right-panel">
-        <div class="grid-bg">
-            <div class="grid" id="mineGrid"></div>
-        </div>
-    </div>
+export default function App() {
+  const [theme, setTheme] = useState("dark");
+  const [mode, setMode] = useState("classic");
 
-</div>
+  // Classic state
+  const [boardSize, setBoardSize] = useState(6);
+  const [minesCount, setMinesCount] = useState(5);
+  const [reward, setReward] = useState(10);
+  const [board, setBoard] = useState([]);
+  const [gameActive, setGameActive] = useState(false);
+  const [win, setWin] = useState(0);
+  const [openedSafe, setOpenedSafe] = useState(0);
+  const [status, setStatus] = useState('⚡ Настрой игру и нажми "НОВАЯ ИГРА"');
+  const [shake, setShake] = useState(false);
+  const [hl, setHl] = useState(-1);
+  const [roulette, setRoulette] = useState(false);
 
-<script>
-    // ═══════════════════════════════════════
-    //  ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-    // ═══════════════════════════════════════
-    let BOARD_SIZE = 6, TOTAL_CELLS = 36;
-    let currentWin = 0, rewardPerCell = 10, selectedMines = 5;
-    let gameActive = false, board = [], openedSafeCount = 0, totalSafeCells = 31;
-    let currentMode = 'classic'; // 'classic' | 'mega'
+  // Mega state
+  const [megaMines, setMegaMines] = useState(80);
+  const [megaState, setMegaState] = useState(null); // {mines:[], opened:[], hitMines:[]}
+  const [cloudStatus, setCloudStatus] = useState(""); // "", "saving", "saved", "loaded", "error"
+  const [megaGameActive, setMegaGameActive] = useState(false);
 
-    // МЕГА-режим константы
-    const MEGA_COLS = 10, MEGA_ROWS = 10;
-    const MEGA_TOTAL = MEGA_COLS * MEGA_ROWS; // 100
-    let MEGA_MINES = 80;
-    let MEGA_SAFE = MEGA_TOTAL - MEGA_MINES; // 20
+  const totalCells = boardSize * boardSize;
+  const totalSafe = totalCells - minesCount;
+  const megaSafe = MEGA_TOTAL - megaMines;
 
-    const STORAGE_KEY = 'vadyms22_mega_mines';
-
-    // ═══════════════════════════════════════
-    //  DOM
-    // ═══════════════════════════════════════
-    const currentWinSpan    = document.getElementById('currentWin');
-    const minesCountDisplay = document.getElementById('minesCountDisplay');
-    const openedSafeDisplay = document.getElementById('openedSafeDisplay');
-    const totalSafeDisplay  = document.getElementById('totalSafeDisplay');
-    const gameStatusSpan    = document.getElementById('gameStatus');
-    const startBtn          = document.getElementById('startGameBtn');
-    const cashoutBtn        = document.getElementById('cashoutBtn');
-    const doubleBtn         = document.getElementById('doubleBtn');
-    const minesInput        = document.getElementById('minesInput');
-    const rewardInput       = document.getElementById('rewardInput');
-    const gridContainer     = document.getElementById('mineGrid');
-    const sizeSlider        = document.getElementById('sizeSlider');
-    const sizeBadge         = document.getElementById('sizeBadge');
-    const minesHint         = document.getElementById('minesHint');
-
-    // ═══════════════════════════════════════
-    //  РЕЖИМ
-    // ═══════════════════════════════════════
-    function switchMode(mode) {
-        currentMode = mode;
-        gameActive = false;
-        currentWin = 0;
-
-        document.getElementById('modeClassicBtn').className = 'mode-btn' + (mode === 'classic' ? ' active' : '');
-        document.getElementById('modeMegaBtn').className = 'mode-btn' + (mode === 'mega' ? ' mega-active' : '');
-        document.getElementById('classicSettings').classList.toggle('hidden', mode !== 'classic');
-        document.getElementById('megaSettings').classList.toggle('hidden', mode !== 'mega');
-        document.getElementById('classicBtns').classList.toggle('hidden', mode !== 'classic');
-
-        if (mode === 'mega') {
-            startBtn.textContent = '💥 ЗАГРУЗИТЬ МЕГА ПОЛЕ';
-            loadMegaGame();
-        } else {
-            startBtn.textContent = '🎮 НОВАЯ ИГРА';
-            updateUI();
-        }
+  // ── ОБЛАКО ──────────────────────────────────────────
+  const saveToCloud = async (state) => {
+    setCloudStatus("saving");
+    try {
+      await window.storage.set(CLOUD_KEY, JSON.stringify({ ...state, megaMinesCount: megaMines }));
+      setCloudStatus("saved");
+      setTimeout(() => setCloudStatus(""), 2000);
+    } catch (e) {
+      setCloudStatus("error");
+      setTimeout(() => setCloudStatus(""), 3000);
     }
+  };
 
-    // ═══════════════════════════════════════
-    //  КЛАССИЧЕСКИЙ РЕЖИМ
-    // ═══════════════════════════════════════
-    function updateUI() {
-        currentWinSpan.innerText = currentWin.toFixed(2);
-        openedSafeDisplay.innerText = openedSafeCount;
-        totalSafeDisplay.innerText = '/ ' + totalSafeCells;
-        if (currentMode === 'classic') {
-            cashoutBtn.disabled = !(gameActive && currentWin > 0);
-            doubleBtn.disabled  = !(gameActive && currentWin > 0);
-        }
+  const loadFromCloud = async () => {
+    setCloudStatus("loading");
+    try {
+      const res = await window.storage.get(CLOUD_KEY);
+      if (res && res.value) {
+        const data = JSON.parse(res.value);
+        const loadedMines = data.megaMinesCount || 80;
+        setMegaMines(loadedMines);
+        const state = { mines: data.mines, opened: data.opened || [], hitMines: data.hitMines || [] };
+        setMegaState(state);
+        setMegaGameActive(true);
+        setCloudStatus("loaded");
+        setStatus(`☁️ Загружено из облака! Открыто: ${state.opened.length}/${MEGA_TOTAL - loadedMines}`);
+        setTimeout(() => setCloudStatus(""), 2500);
+        return state;
+      } else {
+        setCloudStatus("error");
+        setStatus("☁️ Облако пустое — начни новую игру");
+        setTimeout(() => setCloudStatus(""), 2500);
+      }
+    } catch (e) {
+      setCloudStatus("error");
+      setTimeout(() => setCloudStatus(""), 2500);
     }
+    return null;
+  };
 
-    function generateBoard(minesCount) {
-        const b = Array(BOARD_SIZE).fill().map(() =>
-            Array(BOARD_SIZE).fill().map(() => ({ isMine: false, revealed: false }))
+  // ── КЛАССИКА ──────────────────────────────────────
+  const startClassic = () => {
+    const mc = Math.min(Math.max(1, minesCount), totalCells - 1);
+    const mines = new Set();
+    while (mines.size < mc) mines.add(Math.floor(Math.random() * totalCells));
+    const b = Array(boardSize).fill(null).map((_, r) =>
+      Array(boardSize).fill(null).map((_, c) => ({ isMine: mines.has(r * boardSize + c), revealed: false }))
+    );
+    setBoard(b);
+    setGameActive(true);
+    setWin(0);
+    setOpenedSafe(0);
+    setStatus(`🎲 ${boardSize}×${boardSize} | 💣 ${mc} | ${reward}₽/ячейку`);
+  };
+
+  const clickClassic = (r, c) => {
+    if (!gameActive) return;
+    const cell = board[r][c];
+    if (cell.revealed) return;
+    const nb = board.map(row => row.map(cl => ({ ...cl })));
+    nb[r][c].revealed = true;
+    setBoard(nb);
+    if (cell.isMine) {
+      setShake(true); setTimeout(() => setShake(false), 300);
+      setGameActive(false);
+      setStatus(`💥 ВЗРЫВ! Потеряно ${win.toFixed(2)} ₽`);
+      setWin(0);
+      return;
+    }
+    const newWin = win + reward;
+    const newOpened = openedSafe + 1;
+    setWin(newWin); setOpenedSafe(newOpened);
+    setHl(r * boardSize + c); setTimeout(() => setHl(-1), 800);
+    if (newOpened === totalSafe) { setStatus(`✨ ПОБЕДА! ${newWin.toFixed(2)} ₽ ✨`); setGameActive(false); }
+    else setStatus(`💎 +${reward}₽ | Итого: ${newWin.toFixed(2)} ₽`);
+  };
+
+  const cashout = () => {
+    if (!gameActive || win <= 0) { setStatus("❌ Нечего забирать."); return; }
+    setStatus(`💰 Вы забрали ${win.toFixed(2)} ₽!`);
+    setBoard(board.map(row => row.map(cl => ({ ...cl, revealed: true }))));
+    setWin(0); setGameActive(false);
+  };
+
+  // ── МЕГА ──────────────────────────────────────────
+  const startMega = () => {
+    const state = { mines: generateMines(MEGA_TOTAL, megaMines), opened: [], hitMines: [] };
+    setMegaState(state);
+    setMegaGameActive(true);
+    setStatus(`💥 МЕГА МИНЫ | ${megaMines} мин | ${megaSafe} безопасных`);
+  };
+
+  const clickMega = async (idx) => {
+    if (!megaGameActive || !megaState) return;
+    const mineSet = new Set(megaState.mines);
+    const newState = { ...megaState, opened: [...megaState.opened], hitMines: [...(megaState.hitMines || [])] };
+
+    if (mineSet.has(idx)) {
+      newState.hitMines.push(idx);
+      setShake(true); setTimeout(() => setShake(false), 300);
+      setStatus(`💥 БУМ! Мина #${newState.hitMines.length} — продолжай! 💪`);
+    } else {
+      newState.opened.push(idx);
+      const safe = MEGA_TOTAL - megaMines;
+      if (newState.opened.length >= safe) {
+        setStatus(`🏆 ЛЕГЕНДА! Все ${safe} безопасных найдены! (взрывов: ${newState.hitMines.length})`);
+        setMegaGameActive(false);
+      } else {
+        setStatus(`💎 Безопасно! (${newState.opened.length}/${safe}) Продолжай!`);
+      }
+    }
+    setMegaState(newState);
+    // Автосохранение в облако после каждого клика
+    try {
+      setCloudStatus("saving");
+      await window.storage.set(CLOUD_KEY, JSON.stringify({ ...newState, megaMinesCount: megaMines }));
+      setCloudStatus("saved");
+      setTimeout(() => setCloudStatus(""), 1500);
+    } catch (e) {
+      setCloudStatus("error");
+      setTimeout(() => setCloudStatus(""), 2000);
+    }
+  };
+
+  const resetMega = () => {
+    setMegaState(null);
+    setMegaGameActive(false);
+    setStatus("🔄 Нажми 'НОВАЯ МЕГА ИГРА' для начала");
+  };
+
+  // ── РУЛЕТКА ──────────────────────────────────────
+  const handleRoulette = (isWin) => {
+    setRoulette(false);
+    if (isWin === null) return;
+    if (isWin) { setWin(w => w * 2); setStatus(w => `🎉 Удвоено!`); }
+    else { setStatus(`💔 Неудача! Потеряно ${win.toFixed(2)} ₽`); setWin(0); setGameActive(false); }
+  };
+
+  // ── РЕНДЕР КЛАССИКИ ──────────────────────────────
+  const renderClassicGrid = () => (
+    <div className={`grid${shake ? " shake" : ""}`} style={{ gridTemplateColumns: `repeat(${boardSize}, 64px)` }}>
+      {board.map((row, r) => row.map((cell, c) => {
+        const idx = r * boardSize + c;
+        let cls = "cell";
+        if (cell.revealed) { cls += cell.isMine ? " mine-hit rev" : " rev"; }
+        if (hl === idx) cls += " hl";
+        return (
+          <div key={idx} className={cls} onClick={() => clickClassic(r, c)}>
+            {cell.revealed ? (cell.isMine ? "💣" : `${reward}₽`) : idx + 1}
+          </div>
         );
-        const mineSet = new Set();
-        while (mineSet.size < minesCount) mineSet.add(Math.floor(Math.random() * TOTAL_CELLS));
-        for (let i = 0; i < BOARD_SIZE; i++)
-            for (let j = 0; j < BOARD_SIZE; j++)
-                if (mineSet.has(i * BOARD_SIZE + j)) b[i][j].isMine = true;
-        return b;
-    }
+      }))}
+    </div>
+  );
 
-    function renderGrid() {
-        gridContainer.style.gridTemplateColumns = `repeat(${BOARD_SIZE}, 64px)`;
-        gridContainer.innerHTML = '';
+  // ── РЕНДЕР МЕГА ──────────────────────────────────
+  const renderMegaGrid = () => {
+    if (!megaState) return (
+      <div style={{ color: "#ff9ec0", fontFamily: "Orbitron,monospace", padding: 40, textAlign: "center", fontSize: "1rem" }}>
+        💥 Нажми «НОВАЯ МЕГА ИГРА»<br />или загрузи из облака ☁️
+      </div>
+    );
+    const mineSet = new Set(megaState.mines);
+    const openedSet = new Set(megaState.opened);
+    const hitSet = new Set(megaState.hitMines || []);
+    return (
+      <div className={`grid${shake ? " shake" : ""}`} style={{ gridTemplateColumns: `repeat(${MEGA_COLS}, 64px)` }}>
+        {Array.from({ length: MEGA_TOTAL }, (_, i) => {
+          let cls = "cell";
+          if (openedSet.has(i)) cls += " rev mega-safe";
+          else if (hitSet.has(i)) cls += " mine-hit rev";
+          return (
+            <div key={i} className={cls} onClick={() => (!openedSet.has(i) && !hitSet.has(i)) && clickMega(i)}>
+              {openedSet.has(i) ? "💎" : hitSet.has(i) ? "💣" : i + 1}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
-        for (let i = 0; i < BOARD_SIZE; i++) {
-            for (let j = 0; j < BOARD_SIZE; j++) {
-                const cell = board[i][j];
-                const cellNum = i * BOARD_SIZE + j + 1;
-                const div = document.createElement('div');
-                div.classList.add('cell');
+  const cloudLabel = cloudStatus === "saving" ? "☁️ Сохраняю..." : cloudStatus === "saved" ? "✅ Сохранено!" : cloudStatus === "loaded" ? "✅ Загружено!" : cloudStatus === "loading" ? "⏳ Загружаю..." : cloudStatus === "error" ? "❌ Ошибка" : "";
+  const cloudCls = cloudStatus === "saved" || cloudStatus === "loaded" ? "cloud-status cloud-ok" : cloudStatus === "error" ? "cloud-status cloud-err" : "cloud-status cloud-load";
 
-                if (cell.revealed) {
-                    div.classList.add('revealed');
-                    if (cell.isMine) {
-                        div.classList.add('mine-hit');
-                        div.innerText = '💣';
-                    } else {
-                        div.innerText = rewardPerCell + '₽';
-                    }
-                } else {
-                    div.innerText = cellNum;
-                }
-                div.addEventListener('click', (function(r, c) { return () => onCellClick(r, c); })(i, j));
-                gridContainer.appendChild(div);
-            }
-        }
-    }
+  const megaOpened = megaState ? megaState.opened.length : 0;
+  const megaHits = megaState ? (megaState.hitMines || []).length : 0;
+  const megaPct = megaSafe > 0 ? (megaOpened / megaSafe) * 100 : 0;
 
-    function highlightCell(row, col) {
-        const div = gridContainer.children[row * BOARD_SIZE + col];
-        if (!div) return;
-        div.classList.remove('highlight');
-        void div.offsetWidth;
-        div.classList.add('highlight');
-        setTimeout(() => div.classList.remove('highlight'), 800);
-    }
+  return (
+    <div className={`app ${theme}`}>
+      <style>{CSS}</style>
+      {roulette && <RouletteOverlay onClose={handleRoulette} />}
 
-    function shakeGrid() {
-        gridContainer.classList.add('shake');
-        setTimeout(() => gridContainer.classList.remove('shake'), 300);
-    }
+      <div className="gc">
+        {/* ── Левая панель ── */}
+        <div className="lp">
+          <div className="card">
+            {/* Режим */}
+            <div>
+              <div className="lbl" style={{ marginBottom: 8 }}>🎮 РЕЖИМ ИГРЫ</div>
+              <div className="mode-row">
+                <div className={`mbtn ${mode === "classic" ? "act-c" : ""}`} onClick={() => setMode("classic")}>⚔️ КЛАССИК</div>
+                <div className={`mbtn ${mode === "mega" ? "act-m" : ""}`} onClick={() => setMode("mega")}>💥 МЕГА МИНЫ</div>
+              </div>
+            </div>
 
-    function loseGame() {
-        if (!gameActive) return;
-        gameActive = false;
-        shakeGrid();
-        // Показываем ТОЛЬКО нажатую мину (уже помечена как revealed + mine-hit)
-        // Остальные мины НЕ раскрываем
-        renderGrid();
-        gameStatusSpan.innerText = `💥 ВЗРЫВ! Потеряно ${currentWin.toFixed(2)} ₽`;
-        currentWin = 0;
-        updateUI();
-    }
+            {/* Классик настройки */}
+            {mode === "classic" && (
+              <>
+                <div>
+                  <div className="lbl" style={{ marginBottom: 6 }}>🔲 РАЗМЕР ПОЛЯ (NxN)</div>
+                  <div className="slider-wrap">
+                    <input type="range" min={3} max={12} value={boardSize} onChange={e => setBoardSize(+e.target.value)} />
+                    <div className="badge">{boardSize}×{boardSize}</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="lbl" style={{ marginBottom: 6 }}>💣 КОЛИЧЕСТВО МИН</div>
+                  <input type="number" min={1} max={totalCells - 1} value={minesCount} onChange={e => setMinesCount(+e.target.value)} />
+                  <div className="hint lbl">макс. {totalCells - 1} из {totalCells} ячеек</div>
+                </div>
+                <div>
+                  <div className="lbl" style={{ marginBottom: 6 }}>💰 НАГРАДА ЗА ЯЧЕЙКУ (₽)</div>
+                  <input type="number" min={1} value={reward} onChange={e => setReward(+e.target.value)} />
+                </div>
+                <button className="btn btn-play" onClick={startClassic}>🎮 НОВАЯ ИГРА</button>
+                <div className="btn-row">
+                  <button className="btn btn-cash" disabled={!gameActive || win <= 0} onClick={cashout}>💎 ЗАБРАТЬ</button>
+                  <button className="btn btn-dbl" disabled={!gameActive || win <= 0} onClick={() => setRoulette(true)}>🎡 РУЛЕТКА</button>
+                </div>
+              </>
+            )}
 
-    function cashout() {
-        if (!gameActive || currentWin <= 0) { gameStatusSpan.innerText = '❌ Нечего забирать.'; return; }
-        gameStatusSpan.innerText = `💰 Вы забрали ${currentWin.toFixed(2)} ₽. Отличная игра!`;
-        currentWin = 0; gameActive = false; updateUI();
-        for (let i = 0; i < BOARD_SIZE; i++)
-            for (let j = 0; j < BOARD_SIZE; j++)
-                board[i][j].revealed = true;
-        renderGrid();
-    }
+            {/* Мега настройки */}
+            {mode === "mega" && (
+              <>
+                <div className="mega-card">
+                  <div className="mega-title">💥 МЕГА МИНЫ 💥</div>
+                  <div>
+                    <div className="lbl" style={{ color: "#ffb0d0", marginBottom: 6 }}>💣 КОЛ-ВО МИН (из 100)</div>
+                    <div className="slider-wrap">
+                      <input type="range" min={1} max={99} value={megaMines} onChange={e => setMegaMines(+e.target.value)} />
+                      <div className="badge" style={{ color: "#ffb0d0", borderColor: "#ff5e8e" }}>{megaMines}</div>
+                    </div>
+                    <div className="lbl hint" style={{ color: "#ff9ec0" }}>безопасных: {megaSafe} из 100</div>
+                  </div>
+                  <div>
+                    <div className="lbl" style={{ color: "#ffb0d0", marginBottom: 4, fontSize: ".68rem" }}>ОТКРЫТО БЕЗОПАСНЫХ:</div>
+                    <div className="prog-bar"><div className="prog-fill" style={{ width: megaPct + "%" }} /></div>
+                    <div className="prog-row">
+                      <span>{megaOpened} / {megaSafe}</span>
+                      <span>💣 взрывов: {megaHits}</span>
+                    </div>
+                  </div>
+                  {cloudLabel && <div className={cloudCls}>{cloudLabel}</div>}
+                </div>
+                <button className="btn btn-play" onClick={startMega}>💥 НОВАЯ МЕГА ИГРА</button>
+                <button className="btn btn-cloud" onClick={() => megaState && saveToCloud(megaState)} disabled={!megaState}>
+                  ☁️ СОХРАНИТЬ В ОБЛАКО
+                </button>
+                <button className="btn btn-cloud" onClick={loadFromCloud} style={{ background: "radial-gradient(circle at 30% 10%,#a78bfa,#6d28d9)!important" }}>
+                  📥 ЗАГРУЗИТЬ ИЗ ОБЛАКА
+                </button>
+                <button className="btn btn-reset" onClick={resetMega}>🔄 СБРОСИТЬ МЕГА ИГРУ</button>
+              </>
+            )}
 
-    function onCellClick(row, col) {
-        if (!gameActive) return;
-        const cell = board[row][col];
-        if (cell.revealed) return;
-        cell.revealed = true;
-        if (cell.isMine) {
-            renderGrid(); // перерисовываем с mine-hit только на этой ячейке
-            loseGame();
-            return;
-        }
-        highlightCell(row, col);
-        openedSafeCount++; currentWin += rewardPerCell;
-        updateUI(); renderGrid();
-        if (openedSafeCount === totalSafeCells) {
-            gameStatusSpan.innerText = `✨ ПОБЕДА! ${currentWin.toFixed(2)} ₽ ✨`;
-            return;
-        }
-        gameStatusSpan.innerText = `💎 +${rewardPerCell}₽ | Итого: ${currentWin.toFixed(2)} ₽`;
-    }
+            {/* Темы */}
+            <div className="btn-row">
+              <button className="btn btn-theme" onClick={() => setTheme("dark")}>🌑 Тёмная</button>
+              <button className="btn btn-theme" onClick={() => setTheme("light")}>☀️ Светлая</button>
+              <button className="btn btn-theme" onClick={() => setTheme("neon")}>💜 Неон</button>
+              <button className="btn btn-theme" onClick={() => setTheme("mint")}>🍃 Мятная</button>
+            </div>
+          </div>
 
-    function startNewGame() {
-        BOARD_SIZE = parseInt(sizeSlider.value);
-        TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
-        let mines = parseInt(minesInput.value);
-        if (isNaN(mines) || mines < 1) mines = 1;
-        if (mines >= TOTAL_CELLS) mines = TOTAL_CELLS - 1;
-        minesInput.value = mines; selectedMines = mines;
-        let reward = parseFloat(rewardInput.value);
-        if (isNaN(reward) || reward <= 0) reward = 10;
-        rewardInput.value = reward; rewardPerCell = reward;
-        gameActive = true; openedSafeCount = 0; currentWin = 0;
-        totalSafeCells = TOTAL_CELLS - selectedMines;
-        minesCountDisplay.innerText = selectedMines;
-        board = generateBoard(selectedMines);
-        renderGrid(); updateUI();
-        gameStatusSpan.innerText = `🎲 ${BOARD_SIZE}×${BOARD_SIZE} | 💣 ${selectedMines} | ${rewardPerCell}₽/ячейку`;
-    }
+          {/* Статистика */}
+          <div className="card">
+            <div className="stat-row"><span className="itext">✨ ВЫИГРЫШ:</span><span><span className="win-val">{win.toFixed(2)}</span> ₽</span></div>
+            <div className="stat-row"><span className="itext">💣 МИН:</span><span className="itext">{mode === "mega" ? megaMines : minesCount}</span></div>
+            <div className="stat-row">
+              <span className="itext">💎 ОТКРЫТО:</span>
+              <span className="itext">{mode === "mega" ? megaOpened : openedSafe} / {mode === "mega" ? megaSafe : totalSafe}</span>
+            </div>
+          </div>
 
-    // ═══════════════════════════════════════
-    //  МЕГА РЕЖИМ — ХРАНИЛИЩЕ
-    // ═══════════════════════════════════════
+          <div className="status">{status}</div>
+        </div>
 
-    function generateMegaMines() {
-        const mineSet = new Set();
-        while (mineSet.size < MEGA_MINES) mineSet.add(Math.floor(Math.random() * MEGA_TOTAL));
-        return Array.from(mineSet);
-    }
-
-    function loadMegaGame() {
-        // Берём кол-во мин из слайдера
-        MEGA_MINES = parseInt(document.getElementById('megaMinesSlider').value) || 80;
-        MEGA_SAFE = MEGA_TOTAL - MEGA_MINES;
-
-        BOARD_SIZE = MEGA_COLS;
-        TOTAL_CELLS = MEGA_TOTAL;
-        totalSafeCells = MEGA_SAFE;
-        selectedMines = MEGA_MINES;
-        openedSafeCount = 0;
-        currentWin = 0;
-        gameActive = true;
-
-        // Генерируем свежую игру
-        const megaBoard = { mines: generateMegaMines(), opened: [], hitMines: [] };
-
-        minesCountDisplay.innerText = MEGA_MINES;
-        updateUI();
-        updateMegaUI(megaBoard);
-        renderMegaGrid(megaBoard);
-        gameStatusSpan.innerText = `💥 МЕГА МИНЫ | ${MEGA_MINES} мин | ${MEGA_SAFE} безопасных`;
-
-        // Сохраняем текущую игру в window для доступа из кликов
-        window._currentMegaState = megaBoard;
-    }
-
-    function updateMegaUI(state) {
-        const opened = state ? state.opened.length : 0;
-        const safe = MEGA_TOTAL - MEGA_MINES;
-        const pct = safe > 0 ? (opened / safe) * 100 : 0;
-        document.getElementById('megaProgressFill').style.width = pct + '%';
-        document.getElementById('megaOpenedCount').textContent = opened + ' / ' + safe;
-        document.getElementById('megaHitCount').textContent = '💣 взрывов: ' + (state ? (state.hitMines || []).length : 0);
-    }
-
-    function renderMegaGrid(state) {
-        const mineSet = new Set(state.mines);
-        const openedSet = new Set(state.opened);
-        const hitSet = new Set(state.hitMines || []);
-
-        gridContainer.style.gridTemplateColumns = `repeat(${MEGA_COLS}, 64px)`;
-        gridContainer.innerHTML = '';
-
-        for (let i = 0; i < MEGA_TOTAL; i++) {
-            const div = document.createElement('div');
-            div.classList.add('cell');
-
-            if (openedSet.has(i)) {
-                div.classList.add('revealed', 'mega-safe');
-                div.innerText = '💎';
-            } else if (hitSet.has(i)) {
-                // Ранее взорванная мина — показываем, но игра не окончена
-                div.classList.add('mine-hit', 'revealed');
-                div.innerText = '💣';
-            } else {
-                div.innerText = (i + 1);
-                div.addEventListener('click', () => onMegaCellClick(i, state));
-            }
-            gridContainer.appendChild(div);
-        }
-    }
-
-    function onMegaCellClick(idx, state) {
-        if (!gameActive) return;
-
-        const mineSet = new Set(state.mines);
-
-        if (mineSet.has(idx)) {
-            // МИНА — отмечаем, не заканчиваем игру
-            if (!state.hitMines) state.hitMines = [];
-            state.hitMines.push(idx);
-
-            const div = gridContainer.children[idx];
-            if (div) {
-                div.classList.add('mine-hit', 'revealed');
-                div.innerText = '💣';
-                div.onclick = null;
-            }
-            shakeGrid();
-            updateMegaUI(state);
-            gameStatusSpan.innerText = `💥 БУМ! Мина #${state.hitMines.length} — продолжай! 💪`;
-        } else {
-            // Безопасная ячейка!
-            state.opened.push(idx);
-            openedSafeCount = state.opened.length;
-
-            const div = gridContainer.children[idx];
-            if (div) {
-                div.classList.add('revealed', 'mega-safe', 'today-opened');
-                div.innerText = '💎';
-                div.onclick = null;
-            }
-
-            updateUI();
-            updateMegaUI(state);
-
-            const safe = MEGA_TOTAL - MEGA_MINES;
-            if (state.opened.length >= safe) {
-                gameStatusSpan.innerText = `🏆 ЛЕГЕНДА! Все ${safe} безопасных найдены! (взрывов: ${(state.hitMines||[]).length})`;
-                gameActive = false;
-            } else {
-                gameStatusSpan.innerText = `💎 Безопасно! (${state.opened.length}/${safe}) Продолжай!`;
-            }
-        }
-    }
-
-    function resetMegaGame() {
-        if (!confirm('Сбросить прогресс МЕГА МИНЫ? Всё начнётся заново!')) return;
-        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
-        window._megaFallback = null;
-        gameActive = false;
-        openedSafeCount = 0;
-        currentWin = 0;
-        loadMegaGame();
-        gameStatusSpan.innerText = `🔄 Новая МЕГА ИГРА создана!`;
-    }
-
-    // ═══════════════════════════════════════
-    //  РУЛЕТКА
-    // ═══════════════════════════════════════
-    let rouletteCanvas = null, rouletteCtx = null;
-    let rouletteSpinning = false, rouletteCurrentAngle = 0;
-    const sectors = [{label:'x2',color:'#4CAF50',value:'win'},{label:'0',color:'#F44336',value:'lose'}];
-    const sectorAngle = Math.PI;
-
-    function drawRouletteWheel(angle) {
-        if (!rouletteCtx) return;
-        const cx=150,cy=150,r=140;
-        rouletteCtx.clearRect(0,0,300,300);
-        for (let i=0;i<sectors.length;i++) {
-            const s=angle+i*sectorAngle,e=s+sectorAngle;
-            rouletteCtx.beginPath(); rouletteCtx.arc(cx,cy,r,s,e); rouletteCtx.lineTo(cx,cy);
-            rouletteCtx.fillStyle=sectors[i].color; rouletteCtx.fill();
-            rouletteCtx.save(); rouletteCtx.translate(cx,cy); rouletteCtx.rotate(s+sectorAngle/2);
-            rouletteCtx.fillStyle='#fff'; rouletteCtx.font='bold 26px Orbitron'; rouletteCtx.fillText(sectors[i].label,r-50,10);
-            rouletteCtx.restore();
-        }
-        rouletteCtx.beginPath(); rouletteCtx.arc(cx,cy,20,0,2*Math.PI);
-        rouletteCtx.fillStyle='#222'; rouletteCtx.fill();
-        rouletteCtx.strokeStyle='gold'; rouletteCtx.lineWidth=3; rouletteCtx.stroke();
-        rouletteCtx.beginPath();
-        rouletteCtx.moveTo(cx+12,cy-r-4); rouletteCtx.lineTo(cx-12,cy-r-4); rouletteCtx.lineTo(cx,cy-r-22);
-        rouletteCtx.fillStyle='gold'; rouletteCtx.fill();
-    }
-
-    function getSectorUnderPointer(angle) {
-        const ptr=((-Math.PI/2)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-        for (let i=0;i<sectors.length;i++) {
-            let ns=((angle+i*sectorAngle)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-            let ne=((angle+(i+1)*sectorAngle)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-            if (ns<ne?(ptr>=ns&&ptr<ne):(ptr>=ns||ptr<ne)) return sectors[i];
-        }
-        return sectors[0];
-    }
-
-    function startRouletteSpin(callback) {
-        if (rouletteSpinning) return;
-        rouletteSpinning=true;
-        const totalAngle=(5+Math.random()*5)*2*Math.PI;
-        const startAngle=rouletteCurrentAngle,duration=1500,startTime=performance.now();
-        (function animate(now) {
-            const t=Math.min(1,(now-startTime)/duration),ease=1-Math.pow(1-t,3);
-            drawRouletteWheel(startAngle+totalAngle*ease);
-            if (t<1) { requestAnimationFrame(animate); return; }
-            rouletteCurrentAngle=(startAngle+totalAngle)%(2*Math.PI);
-            drawRouletteWheel(rouletteCurrentAngle); rouletteSpinning=false;
-            setTimeout(()=>callback(getSectorUnderPointer(rouletteCurrentAngle).value==='win'),200);
-        })(startTime);
-    }
-
-    function showRoulette(callback) {
-        const overlay=document.createElement('div'); overlay.className='roulette-overlay';
-        const canvas=document.createElement('canvas'); canvas.width=canvas.height=300;
-        rouletteCanvas=canvas; rouletteCtx=canvas.getContext('2d');
-        drawRouletteWheel(rouletteCurrentAngle);
-        const card=document.createElement('div'); card.className='roulette-card';
-        card.innerHTML='<h3>🎡 КОЛЕСО ФОРТУНЫ 🎡</h3>';
-        card.appendChild(canvas);
-        const spinBtn=document.createElement('button'); spinBtn.innerText='КРУТИТЬ'; spinBtn.className='spin-roulette-btn';
-        const closeBtn=document.createElement('button'); closeBtn.innerText='ЗАКРЫТЬ'; closeBtn.className='close-roulette';
-        spinBtn.onclick=()=>{ if(!rouletteSpinning) startRouletteSpin(r=>{callback(r);overlay.remove();}); };
-        closeBtn.onclick=()=>{ if(!rouletteSpinning) overlay.remove(); };
-        card.appendChild(spinBtn); card.appendChild(closeBtn);
-        overlay.appendChild(card); document.body.appendChild(overlay);
-    }
-
-    function doubleOrNothing() {
-        if (!gameActive||currentWin<=0) { gameStatusSpan.innerText='❌ Нечего удваивать.'; return; }
-        showRoulette(isWin=>{
-            if (isWin) { currentWin*=2; updateUI(); gameStatusSpan.innerText=`🎉 Удвоено! ${currentWin.toFixed(2)} ₽`; }
-            else {
-                gameStatusSpan.innerText=`💔 Неудача! Потеряно ${currentWin.toFixed(2)} ₽`;
-                currentWin=0; gameActive=false; updateUI();
-                // Не раскрываем все ячейки — только показываем статус
-            }
-        });
-    }
-
-    // ═══════════════════════════════════════
-    //  КНОПКИ
-    // ═══════════════════════════════════════
-    startBtn.addEventListener('click', () => {
-        if (currentMode === 'classic') {
-            gameActive = false;
-            startNewGame();
-        } else {
-            loadMegaGame();
-        }
-    });
-
-    cashoutBtn.addEventListener('click', cashout);
-    doubleBtn.addEventListener('click', doubleOrNothing);
-    document.getElementById('themeDark').addEventListener('click',  () => document.body.className = 'dark');
-    document.getElementById('themeLight').addEventListener('click', () => document.body.className = 'light');
-    document.getElementById('themeNeon').addEventListener('click',  () => document.body.className = 'neon');
-    document.getElementById('themeMint').addEventListener('click',  () => document.body.className = 'mint');
-
-    sizeSlider.addEventListener('input', () => {
-        const n = parseInt(sizeSlider.value);
-        sizeBadge.textContent = n + '×' + n;
-        minesHint.textContent = `макс. ${n*n-1} из ${n*n} ячеек`;
-        minesInput.max = n*n-1;
-    });
-
-    document.getElementById('megaMinesSlider').addEventListener('input', () => {
-        const v = parseInt(document.getElementById('megaMinesSlider').value);
-        document.getElementById('megaMinesBadge').textContent = v;
-        document.getElementById('megaSafeHint').textContent = `безопасных: ${MEGA_TOTAL - v} из ${MEGA_TOTAL}`;
-    });
-
-    // ═══════════════════════════════════════
-    //  ИНИЦИАЛИЗАЦИЯ
-    // ═══════════════════════════════════════
-    BOARD_SIZE = 6; TOTAL_CELLS = 36;
-    board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill().map(() => ({isMine:false,revealed:false})));
-    renderGrid(); updateUI();
-    minesCountDisplay.innerText = 5; sizeBadge.textContent = '6×6';
-    minesHint.textContent = 'макс. 35 из 36 ячеек'; minesInput.max = 35;
-    document.body.className = 'dark';
-</script>
-</body>
-</html>
+        {/* ── Правая панель: сетка ── */}
+        <div className="rp">
+          <div className="grid-bg">
+            {mode === "classic" ? renderClassicGrid() : renderMegaGrid()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
