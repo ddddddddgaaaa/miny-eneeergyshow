@@ -30,7 +30,6 @@
             align-items: flex-start;
         }
 
-        /* ── Левая панель фиксированной ширины ── */
         .left-panel {
             flex: 0 0 300px;
             display: flex;
@@ -38,7 +37,6 @@
             gap: 20px;
         }
 
-        /* ── Правая панель: занимает остаток, скролл если не влезает ── */
         .right-panel {
             flex: 1 1 0;
             min-width: 0;
@@ -49,9 +47,8 @@
             padding: 4px;
         }
 
-        /* Фон-обёртка поля — подстраивается под содержимое */
         .grid-bg {
-            display: inline-flex;         /* размер по содержимому */
+            display: inline-flex;
             padding: 14px;
             border-radius: 32px;
             border: 2px solid #b48aff;
@@ -60,7 +57,6 @@
             flex-shrink: 0;
         }
 
-        /* Сетка: ячейки фиксированного размера, поле растёт */
         .grid {
             display: grid;
             gap: 8px;
@@ -85,7 +81,6 @@
             100%{transform:translate(1px,-2px) rotate(-1deg)}
         }
 
-        /* Ячейка — ФИКСИРОВАННЫЙ размер 64×64, не сжимается */
         .cell {
             width: 64px;
             height: 64px;
@@ -100,9 +95,10 @@
             transition: all 0.2s cubic-bezier(0.2,0.9,0.4,1.1);
             border: 1px solid #c7a5ff;
             text-shadow: 0 0 3px rgba(0,0,0,0.3);
+            position: relative;
         }
 
-        .cell:hover:not(.revealed) {
+        .cell:hover:not(.revealed):not(.flagged) {
             filter: brightness(1.3);
             transform: scale(0.94);
         }
@@ -113,7 +109,42 @@
             cursor: default;
         }
 
-        .cell.mine-reveal { box-shadow: inset 0 0 15px #ff5e8e; }
+        .cell.mine-hit {
+            box-shadow: inset 0 0 20px #ff2200, 0 0 12px #ff4400 !important;
+            background: radial-gradient(ellipse at center, #ff4400, #8b0000) !important;
+            animation: mineFlash 0.4s ease;
+        }
+
+        @keyframes mineFlash {
+            0%{transform:scale(1)} 30%{transform:scale(1.15)} 100%{transform:scale(0.92)}
+        }
+
+        .cell.flagged { cursor: pointer; }
+        .cell.flagged::after { content: '🚩'; font-size: 1.4rem; }
+
+        .cell.mega-safe {
+            background: radial-gradient(ellipse at 30% 35%, #2a6e3a, #1a4a28) !important;
+            border-color: #4cff80 !important;
+            box-shadow: inset 0 0 12px #2aff60, 0 0 8px #1aff50 !important;
+        }
+
+        .cell.mega-mine-revealed {
+            background: radial-gradient(ellipse at center, #5a0000, #300000) !important;
+            border-color: #ff4444 !important;
+            box-shadow: inset 0 0 12px #ff0000, 0 0 6px #cc0000 !important;
+            cursor: default;
+            opacity: 0.6;
+        }
+
+        .cell.today-opened {
+            animation: todayPulse 1s ease forwards;
+        }
+
+        @keyframes todayPulse {
+            0%{box-shadow:0 0 0 #ffd700}
+            50%{box-shadow:0 0 20px #ffd700, 0 0 40px #ffaa00}
+            100%{box-shadow:inset 0 0 12px #dbb0ff, 0 0 6px #c58eff}
+        }
 
         .cell.highlight {
             animation: greenGlow 0.8s cubic-bezier(0.2,0.9,0.4,1.1) forwards;
@@ -125,6 +156,97 @@
             50% {background:#66bb6a;box-shadow:0 0 28px #7cb342,0 0 12px #4caf50;transform:scale(0.96)}
             75% {background:#81c784;box-shadow:0 0 18px #8bc34a;transform:scale(0.95)}
             100%{background:rgba(76,175,80,0);box-shadow:0 0 0 #4caf50;transform:scale(1)}
+        }
+
+        /* ── Режим-переключатель ── */
+        .mode-switch {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border-radius: 24px;
+            border: 2px solid #b48aff;
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            font-family: 'Orbitron', monospace;
+            font-weight: bold;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .mode-btn.active {
+            background: radial-gradient(circle at 30% 10%, #b48aff, #6a2adf);
+            border-color: #fff;
+            box-shadow: 0 0 14px #b48aff;
+        }
+        .mode-btn.mega-active {
+            background: radial-gradient(circle at 30% 10%, #ff5e8e, #b5185a);
+            border-color: #ffb0d0;
+            box-shadow: 0 0 14px #ff5e8e;
+            animation: megaPulse 2s infinite;
+        }
+        @keyframes megaPulse {
+            0%,100%{box-shadow:0 0 14px #ff5e8e}
+            50%{box-shadow:0 0 28px #ff5e8e, 0 0 50px #ff2060}
+        }
+
+        /* МЕГА-панель */
+        .mega-info-card {
+            border-radius: 24px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(180,0,60,0.3), rgba(80,0,180,0.3));
+            border: 2px solid #ff5e8e;
+            box-shadow: 0 0 20px rgba(255,94,142,0.3);
+            display: none;
+        }
+        .mega-info-card.visible { display: block; }
+        .mega-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            color: #ff9ec0;
+            text-shadow: 0 0 8px #ff5e8e;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+        .mega-progress-bar {
+            width: 100%;
+            height: 14px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 8px 0;
+            border: 1px solid #ff5e8e44;
+        }
+        .mega-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff5e8e, #ffb347);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 8px #ff5e8e;
+        }
+        .mega-stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #ffb0d0;
+            margin-top: 6px;
+        }
+
+        .daily-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-left: 6px;
+            box-shadow: 0 0 8px #ffd700;
         }
 
         /* ── Панель управления ── */
@@ -231,6 +353,9 @@
             font-weight: bold; margin: 10px 5px; cursor: pointer; color: black;
         }
 
+        /* Скрываемые классы */
+        .hidden { display: none !important; }
+
         @media (max-width: 750px) {
             .game-container { flex-direction: column; }
             .left-panel { flex: none; width: 100%; }
@@ -292,24 +417,63 @@
 
     <div class="left-panel">
         <div class="panel-card">
+            <!-- Переключатель режимов -->
             <div class="menu-group">
-                <div class="menu-label">🔲 РАЗМЕР ПОЛЯ (NxN)</div>
-                <div class="size-slider-wrap">
-                    <input type="range" id="sizeSlider" class="size-slider" min="3" max="12" value="6" step="1">
-                    <div class="size-value-badge" id="sizeBadge">6×6</div>
+                <div class="menu-label">🎮 РЕЖИМ ИГРЫ</div>
+                <div class="mode-switch">
+                    <div class="mode-btn active" id="modeClassicBtn" onclick="switchMode('classic')">⚔️ КЛАССИК</div>
+                    <div class="mode-btn" id="modeMegaBtn" onclick="switchMode('mega')">💥 МЕГА МИНЫ</div>
                 </div>
             </div>
-            <div class="menu-group">
-                <div class="menu-label">💣 КОЛИЧЕСТВО МИН</div>
-                <input type="number" id="minesInput" class="input-field" min="1" max="35" value="5" step="1">
-                <div class="menu-label" id="minesHint" style="font-size:0.68rem;opacity:0.65;">макс. 35 из 36 ячеек</div>
+
+            <!-- Классические настройки -->
+            <div id="classicSettings">
+                <div class="menu-group">
+                    <div class="menu-label">🔲 РАЗМЕР ПОЛЯ (NxN)</div>
+                    <div class="size-slider-wrap">
+                        <input type="range" id="sizeSlider" class="size-slider" min="3" max="12" value="6" step="1">
+                        <div class="size-value-badge" id="sizeBadge">6×6</div>
+                    </div>
+                </div>
+                <div class="menu-group">
+                    <div class="menu-label">💣 КОЛИЧЕСТВО МИН</div>
+                    <input type="number" id="minesInput" class="input-field" min="1" max="35" value="5" step="1">
+                    <div class="menu-label" id="minesHint" style="font-size:0.68rem;opacity:0.65;">макс. 35 из 36 ячеек</div>
+                </div>
+                <div class="menu-group">
+                    <div class="menu-label">💰 НАГРАДА ЗА ЯЧЕЙКУ (₽)</div>
+                    <input type="number" id="rewardInput" class="input-field" min="1" step="1" value="10">
+                </div>
             </div>
-            <div class="menu-group">
-                <div class="menu-label">💰 НАГРАДА ЗА ЯЧЕЙКУ (₽)</div>
-                <input type="number" id="rewardInput" class="input-field" min="1" step="1" value="10">
+
+            <!-- МЕГА настройки -->
+            <div id="megaSettings" class="hidden">
+                <div class="mega-info-card visible">
+                    <div class="mega-title">💥 МЕГА МИНЫ 💥</div>
+                    <div style="font-size:0.78rem;color:#ffcce0;line-height:1.5;text-align:center;">
+                        Поле 14×8 — <strong>112 ячеек</strong>, <strong>100 мин</strong>.<br>
+                        Только <strong>12 безопасных</strong> клеток.<br>
+                        Открывай по <span class="daily-badge">1 в день</span><br>
+                        Прогресс сохраняется!
+                    </div>
+                    <div style="margin-top:12px;">
+                        <div style="font-size:0.7rem;color:#ffb0d0;margin-bottom:4px;">ОТКРЫТО БЕЗОПАСНЫХ:</div>
+                        <div class="mega-progress-bar">
+                            <div class="mega-progress-fill" id="megaProgressFill" style="width:0%"></div>
+                        </div>
+                        <div class="mega-stats-row">
+                            <span id="megaOpenedCount">0 / 12</span>
+                            <span id="megaDailyStatus">Сегодня: можно открыть ✅</span>
+                        </div>
+                    </div>
+                    <button class="option-btn" id="megaResetBtn" onclick="resetMegaGame()" style="margin-top:12px;width:100%;background:rgba(180,0,60,0.3);border-color:#ff5e8e;color:#ffb0d0;font-size:0.75rem;">
+                        🔄 СБРОСИТЬ МЕГА ИГРУ
+                    </button>
+                </div>
             </div>
-            <button id="startGameBtn" class="option-btn play-btn">🎮 НОВАЯ ИГРА</button>
-            <div class="button-group" style="margin-top:12px;">
+
+            <button id="startGameBtn" class="option-btn play-btn" style="margin-top:12px;">🎮 НОВАЯ ИГРА</button>
+            <div class="button-group" style="margin-top:12px;" id="classicBtns">
                 <button id="cashoutBtn" class="option-btn cashout-btn" disabled>💎 ЗАБРАТЬ</button>
                 <button id="doubleBtn"  class="option-btn double-btn"  disabled>🎡 РУЛЕТКА</button>
             </div>
@@ -339,7 +503,6 @@
         <div class="status-text" id="gameStatus">⚡ Настрой игру и нажми "НОВАЯ ИГРА"</div>
     </div>
 
-    <!-- ПОЛЕ: скролл если не влезает, ячейки фиксированные 64px -->
     <div class="right-panel">
         <div class="grid-bg">
             <div class="grid" id="mineGrid"></div>
@@ -349,10 +512,25 @@
 </div>
 
 <script>
+    // ═══════════════════════════════════════
+    //  ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+    // ═══════════════════════════════════════
     let BOARD_SIZE = 6, TOTAL_CELLS = 36;
     let currentWin = 0, rewardPerCell = 10, selectedMines = 5;
     let gameActive = false, board = [], openedSafeCount = 0, totalSafeCells = 31;
+    let currentMode = 'classic'; // 'classic' | 'mega'
 
+    // МЕГА-режим константы
+    const MEGA_COLS = 14, MEGA_ROWS = 8;
+    const MEGA_TOTAL = MEGA_COLS * MEGA_ROWS; // 112
+    const MEGA_MINES = 100;
+    const MEGA_SAFE = MEGA_TOTAL - MEGA_MINES; // 12
+
+    const STORAGE_KEY = 'vadyms22_mega_mines';
+
+    // ═══════════════════════════════════════
+    //  DOM
+    // ═══════════════════════════════════════
     const currentWinSpan    = document.getElementById('currentWin');
     const minesCountDisplay = document.getElementById('minesCountDisplay');
     const openedSafeDisplay = document.getElementById('openedSafeDisplay');
@@ -368,12 +546,40 @@
     const sizeBadge         = document.getElementById('sizeBadge');
     const minesHint         = document.getElementById('minesHint');
 
+    // ═══════════════════════════════════════
+    //  РЕЖИМ
+    // ═══════════════════════════════════════
+    function switchMode(mode) {
+        currentMode = mode;
+        gameActive = false;
+        currentWin = 0;
+
+        document.getElementById('modeClassicBtn').className = 'mode-btn' + (mode === 'classic' ? ' active' : '');
+        document.getElementById('modeMegaBtn').className = 'mode-btn' + (mode === 'mega' ? ' mega-active' : '');
+        document.getElementById('classicSettings').classList.toggle('hidden', mode !== 'classic');
+        document.getElementById('megaSettings').classList.toggle('hidden', mode !== 'mega');
+        document.getElementById('classicBtns').classList.toggle('hidden', mode !== 'classic');
+
+        if (mode === 'mega') {
+            startBtn.textContent = '💥 ЗАГРУЗИТЬ МЕГА ПОЛЕ';
+            loadMegaGame();
+        } else {
+            startBtn.textContent = '🎮 НОВАЯ ИГРА';
+            updateUI();
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  КЛАССИЧЕСКИЙ РЕЖИМ
+    // ═══════════════════════════════════════
     function updateUI() {
         currentWinSpan.innerText = currentWin.toFixed(2);
         openedSafeDisplay.innerText = openedSafeCount;
         totalSafeDisplay.innerText = '/ ' + totalSafeCells;
-        cashoutBtn.disabled = !(gameActive && currentWin > 0);
-        doubleBtn.disabled  = !(gameActive && currentWin > 0);
+        if (currentMode === 'classic') {
+            cashoutBtn.disabled = !(gameActive && currentWin > 0);
+            doubleBtn.disabled  = !(gameActive && currentWin > 0);
+        }
     }
 
     function generateBoard(minesCount) {
@@ -389,7 +595,6 @@
     }
 
     function renderGrid() {
-        // Ячейки фиксированные — сетка просто растёт
         gridContainer.style.gridTemplateColumns = `repeat(${BOARD_SIZE}, 64px)`;
         gridContainer.innerHTML = '';
 
@@ -402,8 +607,12 @@
 
                 if (cell.revealed) {
                     div.classList.add('revealed');
-                    if (cell.isMine) { div.classList.add('mine-reveal'); div.innerText = '💣'; }
-                    else { div.innerText = rewardPerCell + '₽'; }
+                    if (cell.isMine) {
+                        div.classList.add('mine-hit');
+                        div.innerText = '💣';
+                    } else {
+                        div.innerText = rewardPerCell + '₽';
+                    }
                 } else {
                     div.innerText = cellNum;
                 }
@@ -422,13 +631,6 @@
         setTimeout(() => div.classList.remove('highlight'), 800);
     }
 
-    function revealAllMines() {
-        for (let i = 0; i < BOARD_SIZE; i++)
-            for (let j = 0; j < BOARD_SIZE; j++)
-                if (board[i][j].isMine) board[i][j].revealed = true;
-        renderGrid();
-    }
-
     function shakeGrid() {
         gridContainer.classList.add('shake');
         setTimeout(() => gridContainer.classList.remove('shake'), 300);
@@ -436,9 +638,14 @@
 
     function loseGame() {
         if (!gameActive) return;
-        gameActive = false; shakeGrid(); revealAllMines();
+        gameActive = false;
+        shakeGrid();
+        // Показываем ТОЛЬКО нажатую мину (уже помечена как revealed + mine-hit)
+        // Остальные мины НЕ раскрываем
+        renderGrid();
         gameStatusSpan.innerText = `💥 ВЗРЫВ! Потеряно ${currentWin.toFixed(2)} ₽`;
-        currentWin = 0; updateUI();
+        currentWin = 0;
+        updateUI();
     }
 
     function cashout() {
@@ -451,7 +658,241 @@
         renderGrid();
     }
 
-    // ── РУЛЕТКА ──
+    function onCellClick(row, col) {
+        if (!gameActive) return;
+        const cell = board[row][col];
+        if (cell.revealed) return;
+        cell.revealed = true;
+        if (cell.isMine) {
+            renderGrid(); // перерисовываем с mine-hit только на этой ячейке
+            loseGame();
+            return;
+        }
+        highlightCell(row, col);
+        openedSafeCount++; currentWin += rewardPerCell;
+        updateUI(); renderGrid();
+        if (openedSafeCount === totalSafeCells) {
+            gameStatusSpan.innerText = `✨ ПОБЕДА! ${currentWin.toFixed(2)} ₽ ✨`;
+            return;
+        }
+        gameStatusSpan.innerText = `💎 +${rewardPerCell}₽ | Итого: ${currentWin.toFixed(2)} ₽`;
+    }
+
+    function startNewGame() {
+        BOARD_SIZE = parseInt(sizeSlider.value);
+        TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
+        let mines = parseInt(minesInput.value);
+        if (isNaN(mines) || mines < 1) mines = 1;
+        if (mines >= TOTAL_CELLS) mines = TOTAL_CELLS - 1;
+        minesInput.value = mines; selectedMines = mines;
+        let reward = parseFloat(rewardInput.value);
+        if (isNaN(reward) || reward <= 0) reward = 10;
+        rewardInput.value = reward; rewardPerCell = reward;
+        gameActive = true; openedSafeCount = 0; currentWin = 0;
+        totalSafeCells = TOTAL_CELLS - selectedMines;
+        minesCountDisplay.innerText = selectedMines;
+        board = generateBoard(selectedMines);
+        renderGrid(); updateUI();
+        gameStatusSpan.innerText = `🎲 ${BOARD_SIZE}×${BOARD_SIZE} | 💣 ${selectedMines} | ${rewardPerCell}₽/ячейку`;
+    }
+
+    // ═══════════════════════════════════════
+    //  МЕГА РЕЖИМ — ХРАНИЛИЩЕ
+    // ═══════════════════════════════════════
+
+    function getTodayStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    }
+
+    function loadMegaState() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) return JSON.parse(raw);
+        } catch(e) {}
+        return null;
+    }
+
+    function saveMegaState(state) {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch(e) {
+            // localStorage недоступен — сохраняем в памяти
+            window._megaFallback = state;
+        }
+    }
+
+    function getMegaState() {
+        return loadMegaState() || window._megaFallback || null;
+    }
+
+    function generateMegaMines() {
+        // Генерируем индексы 100 мин из 112 ячеек
+        const mineSet = new Set();
+        while (mineSet.size < MEGA_MINES) mineSet.add(Math.floor(Math.random() * MEGA_TOTAL));
+        return Array.from(mineSet);
+    }
+
+    function loadMegaGame() {
+        let state = getMegaState();
+        if (!state) {
+            // Первый запуск — создаём новую игру
+            state = {
+                mines: generateMegaMines(),
+                opened: [],      // индексы открытых безопасных ячеек
+                lastOpenDate: null,
+                gameOver: false
+            };
+            saveMegaState(state);
+        }
+
+        BOARD_SIZE = MEGA_COLS;
+        TOTAL_CELLS = MEGA_TOTAL;
+        totalSafeCells = MEGA_SAFE;
+        selectedMines = MEGA_MINES;
+        openedSafeCount = state.opened.length;
+        minesCountDisplay.innerText = MEGA_MINES;
+        currentWin = 0;
+        updateUI();
+        updateMegaUI(state);
+        renderMegaGrid(state);
+
+        const today = getTodayStr();
+        if (state.lastOpenDate === today) {
+            gameStatusSpan.innerText = `⏳ Ты уже открывал сегодня. Приходи завтра!`;
+            gameActive = false;
+        } else if (state.gameOver) {
+            gameStatusSpan.innerText = `💀 Игра окончена. Сброс для новой игры.`;
+            gameActive = false;
+        } else {
+            gameStatusSpan.innerText = `💥 МЕГА МИНЫ: нажми на ячейку (1 в день)`;
+            gameActive = true;
+        }
+    }
+
+    function updateMegaUI(state) {
+        const opened = state ? state.opened.length : 0;
+        const pct = (opened / MEGA_SAFE) * 100;
+        document.getElementById('megaProgressFill').style.width = pct + '%';
+        document.getElementById('megaOpenedCount').textContent = opened + ' / ' + MEGA_SAFE;
+
+        const today = getTodayStr();
+        const canOpen = state && !state.gameOver && state.lastOpenDate !== today;
+        document.getElementById('megaDailyStatus').textContent = canOpen
+            ? 'Сегодня: можно открыть ✅'
+            : (state && state.gameOver ? '💀 Игра окончена' : 'Сегодня: уже открыто ⏳');
+    }
+
+    function renderMegaGrid(state) {
+        const mineSet = new Set(state.mines);
+        const openedSet = new Set(state.opened);
+
+        gridContainer.style.gridTemplateColumns = `repeat(${MEGA_COLS}, 64px)`;
+        gridContainer.innerHTML = '';
+
+        for (let i = 0; i < MEGA_TOTAL; i++) {
+            const div = document.createElement('div');
+            div.classList.add('cell');
+
+            if (openedSet.has(i)) {
+                // Открытая безопасная ячейка
+                div.classList.add('revealed', 'mega-safe');
+                div.innerText = '💎';
+            } else if (state.gameOver && mineSet.has(i)) {
+                // После конца игры — показываем мины
+                div.classList.add('mega-mine-revealed');
+                div.innerText = '💣';
+            } else {
+                // Закрытая ячейка
+                div.innerText = (i + 1);
+                div.addEventListener('click', () => onMegaCellClick(i, state));
+            }
+            gridContainer.appendChild(div);
+        }
+    }
+
+    function onMegaCellClick(idx, state) {
+        if (!gameActive) {
+            const today = getTodayStr();
+            if (state.lastOpenDate === today) {
+                gameStatusSpan.innerText = `⏳ Уже открывал сегодня. Приходи завтра!`;
+            } else {
+                gameStatusSpan.innerText = `💀 Игра окончена. Сброс для новой игры.`;
+            }
+            return;
+        }
+
+        const today = getTodayStr();
+        if (state.lastOpenDate === today) {
+            gameStatusSpan.innerText = `⏳ Уже открывал сегодня! Приходи завтра 🗓️`;
+            return;
+        }
+
+        const mineSet = new Set(state.mines);
+
+        if (mineSet.has(idx)) {
+            // МИНА! Помечаем только эту ячейку
+            const div = gridContainer.children[idx];
+            if (div) {
+                div.classList.remove('cell');
+                div.classList.add('cell', 'mine-hit', 'revealed');
+                div.innerText = '💣';
+                div.removeEventListener('click', () => {});
+            }
+            shakeGrid();
+            state.gameOver = true;
+            state.lastOpenDate = today;
+            saveMegaState(state);
+            gameActive = false;
+            updateMegaUI(state);
+            gameStatusSpan.innerText = `💥 БУМ! Попал на мину! Игра окончена.`;
+            // Показываем остальные мины с задержкой
+            setTimeout(() => {
+                renderMegaGrid(state);
+            }, 1500);
+        } else {
+            // Безопасная ячейка!
+            state.opened.push(idx);
+            state.lastOpenDate = today;
+            openedSafeCount = state.opened.length;
+            saveMegaState(state);
+
+            const div = gridContainer.children[idx];
+            if (div) {
+                div.classList.add('revealed', 'mega-safe', 'today-opened');
+                div.innerText = '💎';
+                div.onclick = null;
+            }
+
+            updateUI();
+            updateMegaUI(state);
+
+            if (state.opened.length >= MEGA_SAFE) {
+                gameStatusSpan.innerText = `🏆 ЛЕГЕНДА! Все ${MEGA_SAFE} безопасных клеток найдены!`;
+                state.gameOver = true;
+                saveMegaState(state);
+                gameActive = false;
+            } else {
+                gameStatusSpan.innerText = `💎 Безопасно! (${state.opened.length}/${MEGA_SAFE}) Жди завтра для следующей!`;
+                gameActive = false; // нельзя открыть ещё одну сегодня
+            }
+        }
+    }
+
+    function resetMegaGame() {
+        if (!confirm('Сбросить прогресс МЕГА МИНЫ? Всё начнётся заново!')) return;
+        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+        window._megaFallback = null;
+        gameActive = false;
+        openedSafeCount = 0;
+        currentWin = 0;
+        loadMegaGame();
+        gameStatusSpan.innerText = `🔄 Новая МЕГА ИГРА создана!`;
+    }
+
+    // ═══════════════════════════════════════
+    //  РУЛЕТКА
+    // ═══════════════════════════════════════
     let rouletteCanvas = null, rouletteCtx = null;
     let rouletteSpinning = false, rouletteCurrentAngle = 0;
     const sectors = [{label:'x2',color:'#4CAF50',value:'win'},{label:'0',color:'#F44336',value:'lose'}];
@@ -522,63 +963,49 @@
         if (!gameActive||currentWin<=0) { gameStatusSpan.innerText='❌ Нечего удваивать.'; return; }
         showRoulette(isWin=>{
             if (isWin) { currentWin*=2; updateUI(); gameStatusSpan.innerText=`🎉 Удвоено! ${currentWin.toFixed(2)} ₽`; }
-            else { gameStatusSpan.innerText=`💔 Неудача! Потеряно ${currentWin.toFixed(2)} ₽`; currentWin=0; gameActive=false; updateUI(); revealAllMines(); }
+            else {
+                gameStatusSpan.innerText=`💔 Неудача! Потеряно ${currentWin.toFixed(2)} ₽`;
+                currentWin=0; gameActive=false; updateUI();
+                // Не раскрываем все ячейки — только показываем статус
+            }
         });
     }
 
-    function onCellClick(row, col) {
-        if (!gameActive) return;
-        const cell=board[row][col];
-        if (cell.revealed) return;
-        if (cell.isMine) { loseGame(); return; }
-        highlightCell(row,col);
-        cell.revealed=true; openedSafeCount++; currentWin+=rewardPerCell;
-        updateUI(); renderGrid();
-        if (openedSafeCount===totalSafeCells) { gameStatusSpan.innerText=`✨ ПОБЕДА! ${currentWin.toFixed(2)} ₽ ✨`; return; }
-        gameStatusSpan.innerText=`💎 +${rewardPerCell}₽ | Итого: ${currentWin.toFixed(2)} ₽`;
-    }
-
-    function startNewGame() {
-        BOARD_SIZE=parseInt(sizeSlider.value);
-        TOTAL_CELLS=BOARD_SIZE*BOARD_SIZE;
-        let mines=parseInt(minesInput.value);
-        if (isNaN(mines)||mines<1) mines=1;
-        if (mines>=TOTAL_CELLS) mines=TOTAL_CELLS-1;
-        minesInput.value=mines; selectedMines=mines;
-        let reward=parseFloat(rewardInput.value);
-        if (isNaN(reward)||reward<=0) reward=10;
-        rewardInput.value=reward; rewardPerCell=reward;
-        gameActive=true; openedSafeCount=0; currentWin=0;
-        totalSafeCells=TOTAL_CELLS-selectedMines;
-        minesCountDisplay.innerText=selectedMines;
-        board=generateBoard(selectedMines);
-        renderGrid(); updateUI();
-        gameStatusSpan.innerText=`🎲 ${BOARD_SIZE}×${BOARD_SIZE} | 💣 ${selectedMines} | ${rewardPerCell}₽/ячейку`;
-    }
-
-    function setTheme(t) { document.body.className=t; }
-
-    sizeSlider.addEventListener('input', ()=>{
-        const n=parseInt(sizeSlider.value);
-        sizeBadge.textContent=n+'×'+n;
-        minesHint.textContent=`макс. ${n*n-1} из ${n*n} ячеек`;
-        minesInput.max=n*n-1;
+    // ═══════════════════════════════════════
+    //  КНОПКИ
+    // ═══════════════════════════════════════
+    startBtn.addEventListener('click', () => {
+        if (currentMode === 'classic') {
+            gameActive = false;
+            startNewGame();
+        } else {
+            loadMegaGame();
+        }
     });
 
-    startBtn.addEventListener('click',()=>{ gameActive=false; startNewGame(); });
     cashoutBtn.addEventListener('click', cashout);
     doubleBtn.addEventListener('click', doubleOrNothing);
-    document.getElementById('themeDark').addEventListener('click',()=>setTheme('dark'));
-    document.getElementById('themeLight').addEventListener('click',()=>setTheme('light'));
-    document.getElementById('themeNeon').addEventListener('click',()=>setTheme('neon'));
-    document.getElementById('themeMint').addEventListener('click',()=>setTheme('mint'));
+    document.getElementById('themeDark').addEventListener('click',  () => document.body.className = 'dark');
+    document.getElementById('themeLight').addEventListener('click', () => document.body.className = 'light');
+    document.getElementById('themeNeon').addEventListener('click',  () => document.body.className = 'neon');
+    document.getElementById('themeMint').addEventListener('click',  () => document.body.className = 'mint');
 
-    BOARD_SIZE=6; TOTAL_CELLS=36;
-    board=Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill().map(()=>({isMine:false,revealed:false})));
+    sizeSlider.addEventListener('input', () => {
+        const n = parseInt(sizeSlider.value);
+        sizeBadge.textContent = n + '×' + n;
+        minesHint.textContent = `макс. ${n*n-1} из ${n*n} ячеек`;
+        minesInput.max = n*n-1;
+    });
+
+    // ═══════════════════════════════════════
+    //  ИНИЦИАЛИЗАЦИЯ
+    // ═══════════════════════════════════════
+    BOARD_SIZE = 6; TOTAL_CELLS = 36;
+    board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill().map(() => ({isMine:false,revealed:false})));
     renderGrid(); updateUI();
-    minesCountDisplay.innerText=5; sizeBadge.textContent='6×6';
-    minesHint.textContent='макс. 35 из 36 ячеек'; minesInput.max=35;
-    setTheme('dark');
+    minesCountDisplay.innerText = 5; sizeBadge.textContent = '6×6';
+    minesHint.textContent = 'макс. 35 из 36 ячеек'; minesInput.max = 35;
+    document.body.className = 'dark';
 </script>
 </body>
 </html>
